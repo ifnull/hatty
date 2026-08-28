@@ -69,8 +69,31 @@ existing widget ecosystem for free. Phase 2 should argue this on the merits rath
 inherit the brief's preference for a terminal. The survey states the counter-case; it does
 not consider it settled.
 
-Note also that the premise itself is still unmeasured: "the browser is too heavy" is an
-inference from 905 MiB total / 369 MiB free, not a measurement. Spike S9 fixes that.
+**Premise refined 2026-08-27, from the user's direct experience.** The earlier framing —
+"a browser cannot render this" — was wrong, and the correction matters. Chromium kiosk mode
+against the HA kiosk view *has* been tried on this Pi, and once loaded it performs
+acceptably. The pain is **startup: ten seconds or more to launch**, plus the general weight
+of keeping a browser resident.
+
+That reframes the value proposition more honestly, and more usefully:
+
+> hatty's advantage is not that a terminal renders faster than a browser. It is that a
+> terminal session is *already open*. There is no launch.
+
+This is a better argument than the one it replaces, and it is decision-relevant rather than
+rhetorical:
+
+- It **strengthens §8 option C**. A daemon holding warm state means attaching costs nothing
+  — the dashboard is on screen the instant the Pi reconnects. That is the ten seconds,
+  eliminated by architecture.
+- It **weakens §8 option A**, which pays a fresh connect-and-load cost on every invocation
+  — the same failure mode as the browser, just cheaper.
+- It leaves the screenshot-server rival (O10) standing on its own merits, since that
+  approach is also instant-on. The discriminators there remain refresh latency,
+  interactivity, and keeping Chromium in the stack — not startup.
+
+Spike S9 is **withdrawn**. It was going to measure a premise the user has already lived, and
+it could not discriminate between the two remaining architectures anyway.
 
 ---
 
@@ -277,6 +300,13 @@ possible reload), **logging/diagnostics** (must not write to the rendered termin
   it does not reach into the state store. Keeps widgets testable without a live HA.
 - **Layout is data, not code.** The engine consumes declarative constraints. A new dashboard
   must never require a new code path.
+- **Bindings address attribute paths, not just entity states.** Forced by the real data
+  source: `ha-airspace` publishes aggregate sensors whose payload is a *list of aircraft in
+  an attribute*, deliberately avoiding per-aircraft entities. The Radar table therefore
+  iterates a list nested inside one entity's attributes. So the config model needs attribute
+  paths and a table widget that iterates a bound collection — not merely one value per
+  widget. This is a load-bearing requirement discovered late in Phase 1, and it would have
+  been expensive to retrofit.
 - **Glyph tier is a render-time input.** The same dashboard renders with Braille sparklines
   under X and block sparklines on the console. Widgets declare what they need; the renderer
   substitutes.
@@ -727,8 +757,9 @@ systemd unit with restart-on-failure is required regardless of which option wins
 
 | ID | Risk | Why it is real here | Mitigation / resolves via |
 |---|---|---|---|
-| **R1** | **ADS-B event storm** — update volume overwhelms the render loop or the SSH link | The chosen primary dashboard is the worst case in the instance: 9+ aircraft × 5 attributes, updating every few seconds | S1 to measure; render throttling and coalescing; `subscribe_entities` filtering (S3) |
-| **R2** | **Console glyph budget** — bare tty fonts hold 256–512 glyphs; Braille almost certainly will not fit | Determines the visual vocabulary; unverifiable by the app at runtime | S2; glyph-tier declaration in the display profile; block-element fallback |
+| **R1** | ~~ADS-B event storm~~ **Downgraded 2026-08-27 — low.** Update volume is bounded and self-controlled | ADS-B comes from the user's own integration, [`ifnull/ha-airspace`](https://github.com/ifnull/ha-airspace), which deliberately creates **aggregate sensors carrying aircraft lists in attributes** rather than per-aircraft entities, and throttles publishes to a **default 1/s**. The Radar panel therefore binds a handful of entities at ≤1 Hz, not 45+ attributes at an uncontrolled rate. The rate is a configuration value we own | S1 rescoped to reading our own config and confirming the throttle. Residual concern moves to R15 |
+| **R15** | **Attribute payload size, not event count** | Because aircraft data lives *inside* an attribute, any change rewrites the whole list. Field-level `subscribe_entities` diffing does not reach inside an attribute value, so each update carries the full aircraft JSON — roughly 1–2 KB at 1 Hz. Comfortable, but it means payload size is the cost driver, not message frequency | Confirm actual payload size in S1; bind only the attributes the dashboard renders |
+| **R2** | ~~Console glyph budget~~ **Resolved 2026-08-27 by decision D22.** | The 512-glyph cap is a property of the *framebuffer console*, not of font availability — no installable font escapes it. Resolved by choosing the terminal stack rather than the font: X with no desktop environment gives full Unicode including Braille. The glyph-tier mechanism in the display profile is retained, since a desktop SSH client may still differ | S2 rescoped to confirming coverage under the chosen stack |
 | **R3** | **Unicode width errors** — ambiguous-width characters break column alignment | Already present in the intended design: `µg/m³`, `⚠`, arrows, box-drawing. A width error is a corrupted frame, not a cosmetic flaw | S7; explicit width measurement; a width-audit test over the whole glyph set |
 | **R4** | **Framework cannot serve option C** | Textual-over-SSH is unproven; the recommended architecture depends on it | S4 and S8 before Phase 4 decides |
 | **R5** | **Secret exposure** — token in the repo, in `ps`, in logs, or in a crash dump | Multi-model, multi-reviewer repository; easy to leak by accident | `.gitignore` in place; no token via CLI argument; Phase 4 security review; log redaction |
@@ -751,19 +782,15 @@ at. None is an implementation start. Ordered by how much downstream work they un
 
 | ID | Question | Method | Unblocks |
 |---|---|---|---|
-| **S1** | What is the actual `state_changed` rate for the ADS-B and weather entities? | Subscribe, log event count and payload bytes per second for one hour across a busy and a quiet period | R1, N2, N3, the throttle policy (open question 9) |
-| **S2** | Which glyphs survive on the Pi's bare console vs. under X? | Run the glyph test in `docs/environment.md` in both; record tofu | R2, A3, sparkline technique, open question 5 |
+| **S1** | *Rescoped 2026-08-27.* Rate is bounded by our own `ha-airspace` publish throttle (default 1/s). The open question is now **payload bytes per update**, not event frequency | Read the deployed `ha-airspace` config for the actual throttle; subscribe and log bytes per update for the airspace and weather entities over one busy period | R1, R15, N2, N3 |
+| **S2** | *Rescoped 2026-08-27.* D22 selects X-without-desktop, so the question is now **does the chosen font cover the full glyph set at 8×16 on the panel** | Run the glyph test from `docs/environment.md` under the chosen terminal + DejaVu Sans Mono; confirm Braille, box-drawing, block elements, arrows, `µ`, `²³`; check rendered width | R2, R3, sparkline technique |
 | **S3** | *Rescoped 2026-08-27.* Behaviour is confirmed in source (§7); the open question is now **how much** `subscribe_entities` saves over `state_changed` under real load | Connect both ways against the live instance; compare bytes and message counts for the same entity set. Merge into S1's capture window | R1, N3, N4 |
 | **S4** | Can a Textual app be served over a programmatically owned SSH connection? | Attempt `asyncssh` + Textual with a custom driver; timebox hard; go/no-go | R4, §8 option C, the framework decision |
 | **S5** | What does a frame actually cost over SSH at 100×30? | Instrument bytes written per update for full vs. diff redraw, under S1's measured load | N3, R1, framework decision |
 | **S6** | *Rescoped 2026-08-27.* The API is confirmed (§7); the open question is **which of my entities have long-term statistics at all** | `recorder/list_statistic_ids`, then `recorder/statistics_during_period` for the WeatherFlow/Awair entities; measure latency and size | R12, sparkline data sources |
 | **S7** | Do the intended glyphs render at the expected width? | Width-audit the full glyph set in the Pi console, the Pi emulator, and a desktop terminal | R3 |
 | **S8** | Does Wish serve a Bubble Tea app over SSH with correct resize? | Hello-world over Wish; resize, detach, reconnect at a different size | R4, R7, §8 option C |
-| **S9** | *Added 2026-08-27 by the prior-art survey.* What does the browser approach actually cost on this Pi? | Chromium kiosk on the Pi 3B with the primary Lovelace dashboard; record time-to-first-paint, time-to-interactive, steady-state RSS, CPU during an ADS-B burst | §1 — the premise of the entire project, currently inferred rather than measured |
-
-**S9 belongs before Phase 2, not after.** It measures the premise the whole project rests
-on. If the browser turns out to be tolerable on this hardware, Phase 2's central question
-answers itself and the scope should shrink dramatically.
+| ~~S9~~ | **Withdrawn 2026-08-27.** Chromium kiosk has already been tried on this Pi: ~10 s to launch, acceptable once loaded. The premise is confirmed by experience, and the measurement could not discriminate between the TUI and screenshot-server options anyway. See §1 | — | — |
 
 **Sequencing note.** S1, S2 and S3 are cheap, measurement-only, and change *scope*
 conversations rather than implementation ones. The brief places prototype specification in
@@ -827,8 +854,8 @@ The brief's eight phases are sound and the ordering is kept. Three refinements a
 |---|---|---|---|
 | 1 | Initial planning | — | **this document** |
 | — | **Prior-art survey** | Phase 1 drafted | ✅ **Done 2026-08-27** — [`prior-art-survey.md`](prior-art-survey.md) |
-| — | **Spikes S1–S3, S9** *(proposed addition)* | Phase 1 drafted | Measured event rate, glyph inventory, subscription saving, and the browser's real cost on this Pi |
-| 2 | CEO / product review | Phase 1 + survey + S1–S3 + S9 | Revised scope; MVP confirmed or replaced |
+| — | **Spikes S1–S3** *(proposed addition)* | Phase 1 drafted | Payload sizes, glyph coverage under the chosen stack, subscription saving |
+| 2 | CEO / product review | Phase 1 + survey + S1–S3 | Revised scope; MVP confirmed or replaced |
 | 3 | Technical PM review | Phase 2 | Work breakdown, milestones, acceptance criteria, risk register |
 | — | **Spikes S4–S8** *(brief places these in Phase 4)* | Phase 3 | Framework go/no-go evidence |
 | 4 | Engineering / architecture review | Phase 3 + all spikes | **Framework selected**; §8 option chosen; auth model decided |
@@ -860,8 +887,10 @@ Offered because a review that only receives the author's framing tends to ratify
   find a credible rival that reuses all of Lovelace's widgets for free. This is now the
   strongest form of "is a custom application justified?" and the plan should have to defend
   against it explicitly.
-- **The unmeasured premise.** Until S9 runs, "the browser is too heavy on this Pi" is an
-  inference. Phase 2 should refuse to ratify scope built on it.
+- **Whether "no launch time" is enough.** With the premise refined (§1), the case now rests
+  on instant-on and always-resident rather than on rendering speed. Phase 2 should ask
+  whether that alone justifies a bespoke application, given the screenshot-server option
+  delivers instant-on too.
 - **The MVP choice.** §2 proposes building the *personal* dashboard first and admits this
   tests the configuration model least. The counter-case is real.
 - **Whether option C is over-engineering.** A daemon with an SSH front-end is a network

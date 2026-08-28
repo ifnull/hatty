@@ -82,7 +82,11 @@ console fonts; Braille (U+2800–U+28FF) is 256 code points on its own and almos
 will not fit. Braille-based sub-cell plotting is therefore expected to be unavailable on
 the bare console but available under X in a terminal emulator.
 
-**Unverified.** See spike S2.
+**Superseded 2026-08-27 by decision D22.** The cap is a property of the framebuffer console,
+not of font availability — no installable font escapes it. Resolved by running X without a
+desktop environment, which gives full Unicode including Braille. The glyph test below is still
+worth running under the chosen terminal and font (**DejaVu Sans Mono**, decision D23) to
+confirm coverage and rendered width at 8×16. See spike S2.
 
 Test to run on the Pi, once in a terminal emulator and once on a bare tty (Ctrl+Alt+F1):
 
@@ -188,9 +192,35 @@ Translation notes:
 - Relative-time formatting ("4 weeks ago") is a shared widget requirement.
 - Wind direction and vertical speed map to arrow glyphs (↖↑↗→↘↓↙←, ↑→↓).
 
-### Update-rate warning
+### Update rate — bounded, and ours to set
 
-ADS-B is the highest-frequency data source in the instance: 9+ aircraft, each with position,
-altitude, speed, heading and vertical rate, updating every few seconds. The intended primary
-dashboard is therefore the **worst case** for event volume and redraw traffic. See risk R1
-and spike S1.
+**Revised 2026-08-27.** ADS-B comes from the user's own integration,
+[`ifnull/ha-airspace`](https://github.com/ifnull/ha-airspace), which reads a local receiver
+(dump1090 / dump1090-fa / readsb / dump978, plus dump3411 for drone Remote ID) and publishes
+over MQTT. It is local-first: no cloud API, no account.
+
+Critically for this project, it **deliberately avoids per-aircraft entities** — "that would
+overwhelm HA's registry" — and instead exposes aggregate sensors carrying distance-sorted
+aircraft lists in attributes:
+
+- `sensor.airspace_nearest_aircraft` — distance to closest aircraft, details in attributes
+- `sensor.airspace_aircraft_count`, `sensor.airspace_drone_count`
+- `sensor.airspace_nearest_drone` — operator location in attributes
+- `sensor.airspace_flag_<flag>` — flag counts, aircraft list in attributes
+- per-receiver status/stats entities
+
+Publish rates are **throttled, default 1/s**. So the Radar panel binds a handful of entities
+at ≤1 Hz, and the rate is a configuration value under the user's control — not an
+uncontrolled firehose. Risk R1 is downgraded accordingly.
+
+Two consequences carried into the architecture:
+
+1. **The cost driver is payload size, not event count.** A change inside an attribute rewrites
+   the whole aircraft list, and `subscribe_entities` field-level diffing does not reach inside
+   an attribute value. Roughly 1–2 KB per update at 1 Hz — comfortable, but measured by S1.
+2. **Bindings must address attribute paths and iterate collections.** The aircraft table reads
+   a list nested inside one entity's attributes, not one value per widget.
+
+The integration also binds entity availability to `airspace/status`, so entities go
+`unavailable` when the service stops rather than showing stale values — the staleness
+discipline this project wants, already handled upstream for this source.
