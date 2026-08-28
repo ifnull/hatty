@@ -1,0 +1,49 @@
+# Decision Log
+
+Consequential choices, why they were made, and **what would overturn them**. The last column
+is the point: a decision with no falsifying condition is a preference wearing a decision's
+clothes.
+
+Status values: `settled` · `provisional` · `open`.
+
+---
+
+| # | Date | Decision | Status | Why | What would overturn it |
+|---|---|---|---|---|---|
+| D1 | 2026-08-27 | **Primary design target is 100×30 cells, at an 8×16 console font on the 800×480 DSI panel.** | settled | Derived from layout need, not convenience: the primary dashboard is three dense columns, and ~100 columns is close to the minimum that renders its widest table without shedding columns. Arm's-length desk viewing confirmed by the user, giving ≈2.2 mm cap height — comfortable at 45–70 cm. | The panel moving further away (wall mount), or the primary dashboard being redesigned to fewer columns. Either forces a larger font and a paged single-column layout. |
+| D2 | 2026-08-27 | **Dashboards are configuration, not code.** A generic default ships; personal dashboards are user config selected by CLI argument. | settled | Resolves the personal-utility vs. open-source tension without a fork: the user's WeatherFlow/Awair/ADS-B dashboard and a shippable generic one are the same mechanism with different inputs. Also forces the config layer to be real from day one. | Nothing foreseeable. If the config model proves unable to express a needed dashboard, that is a config-model failure, not a reason to hard-code. |
+| D3 | 2026-08-27 | **Display profiles are inlined per dashboard, not named and shared.** | provisional | At three dashboards the redundancy is ~12 lines. Inlining keeps each dashboard file self-contained and portable — worth something if one is ever published as an example. Named profiles are a purely additive change later. | The dashboard count growing, or observed drift after a client font change (updating two of three files). Both point to named profiles. |
+| D4 | 2026-08-27 | **The app consumes cells, never fonts.** Layout constraints are `cols`/`rows`; pixel resolution and font size are deployment metadata only. | settled | A TUI receives dimensions in cells via `TIOCGWINSZ`/`SIGWINCH`. It cannot set a font — that is client-side. A dashboard declaring `8x16` is describing an intent, and the only honest response to a mismatch is a warning. | Nothing. This is a property of terminals. (`ws_xpixel` may add an opportunistic hint; it does not change the rule.) |
+| D5 | 2026-08-27 | **Font-per-dashboard belongs to the launcher, not the renderer.** A Pi-side wrapper runs `setfont` before connecting. | provisional | Follows from D4. Places the capability where it can actually be exercised, and gives the appliance session model a concrete job. | Moving to a bare console where `setfont` is unavailable or undesirable, or abandoning per-dashboard font variation. |
+| D6 | 2026-08-27 | **Use `subscribe_entities` with an `entity_ids` filter, not `subscribe_events`/`state_changed`.** | settled | Verified in `home-assistant/core` source: `subscribe_entities` accepts an `entity_ids` filter and sends a compressed snapshot (`a`) followed by field-level diffs (`c` with `+`/`-`), where `state_changed` sends complete old *and* new state objects for every change in the instance. Server-side filtering plus field-level diffs attacks risk R1 at the source. Also makes `get_states` redundant. | Only a change in HA itself. Note this command is undocumented and was confirmed from source, so it could change without a documentation deprecation — mitigated by an integration test that fails loudly on a wire-format shift. |
+| D7 | 2026-08-27 | **Option C — a daemon owning HA state with an SSH front-end — is the recommended session architecture.** | provisional | State lives in the daemon, so a disconnect drops a *renderer*, not the state; reconnect re-renders from a warm cache with no HA round-trip. That is what tmux is usually reached for, without tmux. Multiple clients at different terminal sizes fall out naturally. | Spikes S8 or S4 failing; or Phase 2 judging a network service to be over-engineering for one user with one panel. Fallback order: B (tmux), then A (per-invocation). |
+| D8 | 2026-08-27 | **tmux is operational convenience, not an architectural dependency** — conditional on D7. | provisional | The brief asks this directly. Under option C the daemon provides persistence. Under option A, tmux would be the *only* source of session persistence and the answer reverses. | D7 falling back to option A. |
+| D9 | 2026-08-27 | **MVP is read-only.** No service calls, toggles, or scene changes. | settled | The value being proven is glanceable display. Control is cheap to add onto a working state pipeline and expensive to design around one that fails. The display is also a touchscreen, which makes accidental activation a real hazard deserving its own design pass. | Phase 2 judging that read-only is not meaningfully useful — which would be a finding about the product, not the plan. |
+| D10 | 2026-08-27 | **MVP builds the personal dashboard first**, not the generic one. | provisional | A tool the author does not use daily will not get the scrutiny that finds interesting bugs. | Phase 2 preferring the generic dashboard. The counter-case is real and acknowledged in the plan: a config layer with one consumer grows assumptions (risk R14). |
+| D11 | 2026-08-27 | **No geographic map.** The primary dashboard's map panel will not be reproduced. | settled | Explicit non-goal in the brief. Candidate replacement is a polar radar scope plotting aircraft by bearing and distance — terminal-native, and arguably better suited to the medium than a raster map. | Nothing in scope. The replacement panel is a design question for Phase 5, not a reversal. |
+| D12 | 2026-08-27 | **No source tree until Phase 4 selects a framework.** | settled | An empty `src/` prejudges the selection and invites starting. The brief is explicit that implementation follows definition. | Phase 4 completing. |
+| D13 | 2026-08-27 | **Accept HA and the dashboard sharing one Proxmox host.** | settled | User's stated topology. Gives sub-millisecond latency and makes reconnect design about HA restarts rather than network partitions. Recorded so the single point of failure is a decision rather than an oversight. | A future requirement for the dashboard to survive HA-host maintenance. |
+| D14 | 2026-08-27 | **Spikes S1–S3 run before Phase 2**, ahead of the brief's placement of prototypes in Phase 4. | provisional | They are measurement-only and cheap, and they change *scope* conversations. Without them the product review argues about update rates and glyph availability with no data. | The measurements proving harder to obtain than assumed, or Phase 2 proceeding well without them. |
+| D15 | 2026-08-27 | **Token never passed as a CLI argument.** | settled | It would appear in `ps` output and shell history. | Nothing. |
+| D16 | 2026-08-27 | **History backfill is in the MVP**, via `recorder/statistics_during_period`. | settled | Verification showed the command takes `types` of exactly `min`/`mean`/`max` — the three series in the Lovelace wind chart — at a `period` as fine as `5minute` (288 buckets for 24 h). Already aggregated server-side, so the client does none. The previously proposed fallback of live-accumulating sparklines with an empty leading edge is withdrawn as a self-inflicted degradation. | S6 finding that the specific WeatherFlow/Awair entities have no long-term statistics recorded — an instance problem, fixable by recorder configuration, not a reason to drop the feature. |
+| D17 | 2026-08-27 | **WebSocket message IDs use a monotonic counter, reset per connection.** | settled | Not a convention but enforced: `connection.py` rejects `cur_id <= self.last_id` with `ERR_ID_REUSE`, "Identifier values have to increase." The developer docs understate this — they say only that ids correlate messages to responses. Server state is per-connection, so the counter must reset on reconnect. | Nothing. Verified in source. |
+| D18 | 2026-08-27 | **State diffs are merged into the cache, never used to replace it.** | settled | `subscribe_entities` change messages carry only altered fields under `+`, and *removed* attributes under `-`. A client that treats a `c` message as a whole state silently loses every attribute not in that update, and one that ignores `-` retains attributes HA has dropped. Both failures are silent and look like stale data. | Nothing. This follows from the wire format. |
+
+---
+
+## Open decisions
+
+Recorded here so they are visibly unresolved rather than quietly assumed. Detail in
+`../planning/phase-1-plan.md` §4.
+
+| # | Question | Needed by |
+|---|---|---|
+| O1 | Is a "dashboard" one screen, or a set of pages? The brief says pages; the user says three dashboards. One mechanism or two? | Phase 6 |
+| O2 | What are dashboards two and three? | Phase 3 |
+| O3 | VM or LXC for the dashboard instance? | Phase 4 |
+| O4 | Does the Pi keep X, or move to a bare console? Determines the glyph vocabulary and whether touch is reachable. | Phase 4 |
+| O5 | Do adequate HA TUIs already exist? No survey done. | **Phase 2 entry** |
+| ~~O6~~ | ~~Is history backfill required for sparklines at MVP?~~ **Closed 2026-08-27** — verified as supported and cheap; see D16. Residual: which entities have statistics (S6). | — |
+| O7 | Dedicated non-admin HA user for the token, or the primary account? | Phase 4 |
+| O8 | Render-throttle policy under ADS-B load — coalesce by interval, region, or entity priority? | Phase 4, after S1 |
+| O9 | Real `stty size` on the panel. 116×32 is not trustworthy. | Phase 5 |

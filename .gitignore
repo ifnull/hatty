@@ -1,0 +1,29 @@
+# Secrets — never commit a Home Assistant token
+*.token
+.env
+.env.*
+secrets.toml
+config.local.*
+**/config.local.*
+
+# Local dashboard configs may contain host names / tokens
+dashboards/local/
+
+# Runtime
+*.log
+logs/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Go
+/bin/
+/dist/
+*.test
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
