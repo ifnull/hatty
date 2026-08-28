@@ -26,13 +26,11 @@ plus `event.st_00128663_lightning_strike`
 `humidity`, `carbon_dioxide`, `volatile_organic_compounds_parts`, `pm2_5`, `score`,
 `temperature`
 
-**ADS-B** — `sensor.ads_b_aircraft_1090` and `sensor.ads_b_aircraft_978`, each carrying an
-`aircraft` attribute that is a **list of dicts** with keys `lat`, `lon`, `alt_baro`,
-`baro_rate`, `flight`, `hex`, `gs`, `track`.
-
-Note the entity naming: **not** the `sensor.airspace_*` names from the current `ha-airspace`
-README. Either an earlier version or a differently-configured deployment. Worth reconciling
-before S1 — the harness defaults have been updated to the IDs actually in use.
+**ADS-B — ⚠️ SUPERSEDED.** `sensor.ads_b_aircraft_1090` / `_978` are the *pre-`ha-airspace`*
+setup and are scheduled for removal by the user. See
+[`airspace-entity-model.md`](airspace-entity-model.md) for the current contract. The §3
+analysis below still stands as a record of what the old dashboard had to compute by hand —
+and reads better in hindsight, since `ha-airspace` now supplies most of it.
 
 `event.` is a **new entity domain** for this project. Event entities carry a timestamp state
 rather than a scalar, which is where "4 weeks ago" comes from. Add to the type discipline in
@@ -79,6 +77,11 @@ The Radar panel is roughly sixty lines of Jinja embedded in two `markdown` cards
 - formats links, thousands separators, and units.
 
 **None of that is data binding. It is a program.**
+
+> **Postscript, 2026-08-27.** `ha-airspace` supplies `distance_nm`, `bearing_deg`,
+> `predicted_closest_approach_nm` and flag classification as attributes, so most of this
+> Jinja no longer needs to exist. The analysis below is retained because it is *why* D25
+> was made, and because it shows what the alternative looks like.
 
 This is the most consequential thing the YAML reveals, because plan §5 assumed bindings were
 "attribute path → widget." They are not. The real dashboard needs list merging, predicate

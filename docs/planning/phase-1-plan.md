@@ -665,10 +665,12 @@ Three value conditions must be distinct throughout, never collapsed into one "no
 invention and matters most: a frozen dashboard presented as live is the failure mode N7
 exists to prevent.
 
-Type discipline: HA states are strings, and three shapes must be handled, not one:
-scalar `sensor` states; **`event` entities**, whose state is a timestamp (this is where
-"4 weeks ago" on the lightning panel comes from); and **list-valued attributes**, which is
-how the aircraft table arrives. Template sensors in this instance are numerous and
+Type discipline: HA states are strings, and four shapes must be handled, not one:
+scalar `sensor` states; **`binary_sensor`** on/off with context attributes (how alerts
+arrive); **`event` entities**, whose state is a timestamp (this is where "4 weeks ago" on
+the lightning panel comes from); and **list-valued attributes**, which is how the aircraft
+table arrives. Attribute paths must also address **nested dicts** — `ha-airspace` keys
+`bearing_to` and `distance_to` by watchpoint name, so bindings look like `bearing_to.home`. Template sensors in this instance are numerous and
 may return non-numeric values into numeric widgets. Every numeric binding needs a declared
 expected type and a defined behaviour when the value does not parse — displaying a fault
 indicator, never crashing and never silently rendering zero.
@@ -801,7 +803,7 @@ different grid is the test that matters.
 | ID | Question | Method | Unblocks |
 |---|---|---|---|
 | **S1** | *Rescoped 2026-08-27.* Rate is bounded by our own `ha-airspace` publish throttle (default 1/s). The open question is now **payload bytes per update**, not event frequency | Read the deployed `ha-airspace` config for the actual throttle; subscribe and log bytes per update for the airspace and weather entities over one busy period | R1, R15, N2, N3 |
-| **S2** | *Rescoped 2026-08-27.* D22 selects X-without-desktop, so the question is now **does the chosen font cover the full glyph set at 8×16 on the panel** | Run the glyph test from `docs/environment.md` under the chosen terminal + DejaVu Sans Mono; confirm Braille, box-drawing, block elements, arrows, `µ`, `²³`; check rendered width | R2, R3, sparkline technique |
+| **S2** | *Rescoped 2026-08-27.* D22 selects X-without-desktop, so the question is now **does the chosen font cover the full glyph set at 8×16 on the panel** | Run the glyph test from `docs/environment.md` under the chosen terminal + DejaVu Sans Mono; confirm Braille, box-drawing, block elements, arrows, `µ`, `²³`; check rendered width. **Add country-flag emoji** (`ha-airspace` supplies `country_flag`) — regional indicator pairs are double-width and render inconsistently | R2, R3, sparkline technique |
 | **S3** | *Rescoped 2026-08-27.* Behaviour is confirmed in source (§7); the open question is now **how much** `subscribe_entities` saves over `state_changed` under real load | Connect both ways against the live instance; compare bytes and message counts for the same entity set. Merge into S1's capture window | R1, N3, N4 |
 | **S4** | Can a Textual app be served over a programmatically owned SSH connection? | Attempt `asyncssh` + Textual with a custom driver; timebox hard; go/no-go | R4, §8 option C, the framework decision |
 | **S5** | What does a frame actually cost over SSH at 100×30? | Instrument bytes written per update for full vs. diff redraw, under S1's measured load | N3, R1, framework decision |

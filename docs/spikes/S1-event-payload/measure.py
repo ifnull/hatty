@@ -35,31 +35,44 @@ except ImportError:
     sys.exit("missing dependency: pip install websockets")
 
 
-# The entities the primary dashboard actually binds, read from its Lovelace
-# YAML (see docs/planning/dashboard-source-analysis.md). The two ads_b_*
-# sensors are the expensive ones: each carries an "aircraft" attribute that
-# is a LIST of plane dicts, so any change rewrites the whole list (risk R15).
-# Override with --entities.
+# The real ha-airspace entity set (see docs/planning/airspace-entity-model.md).
+# The flag_* sensors carry an "aircraft" attribute that is a LIST of dicts, so
+# any change rewrites the whole list -- risk R15, the reason this spike exists.
+# The *_map entities are likely the largest payloads in the instance; they are
+# included deliberately so S1 can tell us whether to bind them at all.
 DEFAULT_ENTITIES = [
-    # ADS-B -- the payload-size question
-    "sensor.ads_b_aircraft_1090",
-    "sensor.ads_b_aircraft_978",
+    # ha-airspace -- the payload-size question
+    "sensor.airspace_nearest_aircraft",
+    "sensor.airspace_nearest_drone",
+    "sensor.airspace_aircraft_count",
+    "sensor.airspace_drone_count",
+    "sensor.airspace_flag_military",
+    "sensor.airspace_flag_interesting",
+    "sensor.airspace_flag_emergency",
+    "sensor.airspace_flag_spoof_suspect",
+    "sensor.airspace_aircraft_map",
+    "sensor.airspace_drone_map",
+    "sensor.airspace_drone_operator",
+    "binary_sensor.airspace_alert_military_close",
+    # receiver health -- candidate Infrastructure panel
+    "binary_sensor.airspace_receiver_rx_1090_status",
+    "sensor.airspace_receiver_rx_1090_message_rate",
+    "binary_sensor.airspace_receiver_rx_978_status",
+    "sensor.airspace_receiver_rx_978_message_rate",
+    "binary_sensor.airspace_remote_id_dump3411_status",
+    "sensor.airspace_remote_id_dump3411_message_rate",
     # WeatherFlow Tempest
     "sensor.st_00128663_feels_like",
     "sensor.st_00128663_humidity",
     "sensor.st_00128663_wind_speed",
     "sensor.st_00128663_wind_direction",
-    "sensor.st_00128663_precipitation",
     "sensor.st_00128663_battery_voltage",
     "sensor.st_00128663_lightning_count",
-    "sensor.st_00128663_lightning_average_distance",
     "event.st_00128663_lightning_strike",
     # Awair Element
     "sensor.awair_element_128797_score",
     "sensor.awair_element_128797_temperature",
-    "sensor.awair_element_128797_humidity",
     "sensor.awair_element_128797_carbon_dioxide",
-    "sensor.awair_element_128797_volatile_organic_compounds_parts",
     "sensor.awair_element_128797_pm2_5",
 ]
 

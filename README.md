@@ -21,6 +21,7 @@ a 7" panel — does nothing but transport keystrokes and paint cells.
 | [`docs/planning/phase-1-plan.md`](docs/planning/phase-1-plan.md) | The Phase 1 planning package — product definition, MVP, architecture, framework comparison, risks, spikes. |
 | [`docs/planning/prior-art-survey.md`](docs/planning/prior-art-survey.md) | Does an adequate HA TUI already exist? (No.) Phase 2 entry condition. |
 | [`docs/planning/dashboard-source-analysis.md`](docs/planning/dashboard-source-analysis.md) | The primary dashboard's Lovelace YAML read as a requirements document. |
+| [`docs/planning/airspace-entity-model.md`](docs/planning/airspace-entity-model.md) | The ha-airspace entity/attribute contract the Radar panel binds against. |
 | [`docs/spikes/`](docs/spikes/) | Measurement harnesses for the open questions. S1, S4, S8 ready to run. |
 | [`docs/environment.md`](docs/environment.md) | Measured facts: hardware, display, terminal, HA instance. Method and date recorded. |
 | [`docs/decisions/decision-log.md`](docs/decisions/decision-log.md) | Every consequential choice, why, and what would overturn it. |
