@@ -152,11 +152,12 @@ It also uses `type: conditional` for the military-close alert, reinforcing decis
 **Aircraft photos** (`photo.thumbnail_url`, `entity_picture`) cannot be rendered — image
 output is an explicit non-goal. No mitigation needed; the textual record is the point.
 
-**Country flag emoji** (`country_flag`) are a real hazard, not a cosmetic loss. Regional
-indicator pairs are **double-width** and inconsistently rendered across terminals and fonts —
-exactly risk R3, and the console font question from decision D22/D23. Options: substitute
-the two-letter country code, or verify the flag renders at a stable width under the chosen
-font. **Add to spike S2's glyph test.**
+**Country flag emoji** (`country_flag`) are dropped — decision D28. Regional indicator pairs
+are double-width and render inconsistently across terminals and fonts (risk R3), and a width
+error corrupts a whole frame rather than one cell. Substitute the **two-letter country code**
+where one is derivable from `country_flag` or `hex` (the ICAO 24-bit address encodes
+registration country by block), and omit the column otherwise. A code is monospace-safe,
+sorts, and filters — strictly better here than a flag.
 
 ---
 
@@ -171,5 +172,5 @@ font. **Add to spike S2's glyph test.**
 | Infrastructure panel | Concrete source: nine receiver-health entities |
 | Phase 5 navigation | Glance→popup drill-down is the user's existing mental model |
 | Spike S1 | Entity defaults corrected to the real `airspace_*` set; `_map` entities flagged as likely largest payloads |
-| Spike S2 | Add country-flag emoji to the width test |
+| Spike S2 | Flag emoji dropped (D28) — no longer needs testing |
 | Units | `ha-airspace` reports **nm**, not statute miles |
