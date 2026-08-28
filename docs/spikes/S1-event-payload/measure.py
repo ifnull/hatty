@@ -35,14 +35,32 @@ except ImportError:
     sys.exit("missing dependency: pip install websockets")
 
 
-# The airspace entities from ifnull/ha-airspace, plus room for the weather
-# station. Override with --entities; find yours with:
-#   hass-cli entity list | grep -E 'airspace|weatherflow|awair'
+# The entities the primary dashboard actually binds, read from its Lovelace
+# YAML (see docs/planning/dashboard-source-analysis.md). The two ads_b_*
+# sensors are the expensive ones: each carries an "aircraft" attribute that
+# is a LIST of plane dicts, so any change rewrites the whole list (risk R15).
+# Override with --entities.
 DEFAULT_ENTITIES = [
-    "sensor.airspace_nearest_aircraft",
-    "sensor.airspace_aircraft_count",
-    "sensor.airspace_drone_count",
-    "sensor.airspace_nearest_drone",
+    # ADS-B -- the payload-size question
+    "sensor.ads_b_aircraft_1090",
+    "sensor.ads_b_aircraft_978",
+    # WeatherFlow Tempest
+    "sensor.st_00128663_feels_like",
+    "sensor.st_00128663_humidity",
+    "sensor.st_00128663_wind_speed",
+    "sensor.st_00128663_wind_direction",
+    "sensor.st_00128663_precipitation",
+    "sensor.st_00128663_battery_voltage",
+    "sensor.st_00128663_lightning_count",
+    "sensor.st_00128663_lightning_average_distance",
+    "event.st_00128663_lightning_strike",
+    # Awair Element
+    "sensor.awair_element_128797_score",
+    "sensor.awair_element_128797_temperature",
+    "sensor.awair_element_128797_humidity",
+    "sensor.awair_element_128797_carbon_dioxide",
+    "sensor.awair_element_128797_volatile_organic_compounds_parts",
+    "sensor.awair_element_128797_pm2_5",
 ]
 
 

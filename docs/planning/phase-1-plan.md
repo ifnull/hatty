@@ -300,13 +300,22 @@ possible reload), **logging/diagnostics** (must not write to the rendered termin
   it does not reach into the state store. Keeps widgets testable without a live HA.
 - **Layout is data, not code.** The engine consumes declarative constraints. A new dashboard
   must never require a new code path.
-- **Bindings address attribute paths, not just entity states.** Forced by the real data
-  source: `ha-airspace` publishes aggregate sensors whose payload is a *list of aircraft in
-  an attribute*, deliberately avoiding per-aircraft entities. The Radar table therefore
-  iterates a list nested inside one entity's attributes. So the config model needs attribute
-  paths and a table widget that iterates a bound collection — not merely one value per
-  widget. This is a load-bearing requirement discovered late in Phase 1, and it would have
-  been expensive to retrofit.
+- **Bindings address attribute paths, not just entity states.** Confirmed against the real
+  dashboard YAML: `sensor.ads_b_aircraft_1090` and `..._978` each carry an `aircraft`
+  attribute that is a *list of plane dicts*. The Radar table iterates a collection nested
+  inside one entity's attributes, so the config model needs attribute paths and a table
+  widget that iterates a bound collection — not one value per widget.
+- **hatty maps values to appearance; Home Assistant derives values.** The line that keeps
+  the config model from becoming a programming language. The existing dashboard does list
+  merging, filtering, distance computation, sorting and top-N in sixty lines of embedded
+  Jinja — that work belongs in HA template sensors, not in hatty config (decision D25).
+  hatty owns the bounded, closed set: value→colour band, value→glyph, number formatting,
+  relative time. See [`dashboard-source-analysis.md`](dashboard-source-analysis.md).
+- **Panels can be conditionally visible.** The real dashboard hides its lightning cards
+  unless strikes have occurred. Lovelace reflows; a fixed character grid cannot do so for
+  free. Panels must declare whether they *collapse* or *reserve* their space (decision
+  D26) — a Phase 5 design call, recorded here so the layout engine is not designed without
+  it.
 - **Glyph tier is a render-time input.** The same dashboard renders with Braille sparklines
   under X and block sparklines on the console. Widgets declare what they need; the renderer
   substitutes.
@@ -656,7 +665,10 @@ Three value conditions must be distinct throughout, never collapsed into one "no
 invention and matters most: a frozen dashboard presented as live is the failure mode N7
 exists to prevent.
 
-Type discipline: HA states are strings. Template sensors in this instance are numerous and
+Type discipline: HA states are strings, and three shapes must be handled, not one:
+scalar `sensor` states; **`event` entities**, whose state is a timestamp (this is where
+"4 weeks ago" on the lightning panel comes from); and **list-valued attributes**, which is
+how the aircraft table arrives. Template sensors in this instance are numerous and
 may return non-numeric values into numeric widgets. Every numeric binding needs a declared
 expected type and a defined behaviour when the value does not parse — displaying a fault
 indicator, never crashing and never silently rendering zero.
@@ -793,7 +805,7 @@ different grid is the test that matters.
 | **S3** | *Rescoped 2026-08-27.* Behaviour is confirmed in source (§7); the open question is now **how much** `subscribe_entities` saves over `state_changed` under real load | Connect both ways against the live instance; compare bytes and message counts for the same entity set. Merge into S1's capture window | R1, N3, N4 |
 | **S4** | Can a Textual app be served over a programmatically owned SSH connection? | Attempt `asyncssh` + Textual with a custom driver; timebox hard; go/no-go | R4, §8 option C, the framework decision |
 | **S5** | What does a frame actually cost over SSH at 100×30? | Instrument bytes written per update for full vs. diff redraw, under S1's measured load | N3, R1, framework decision |
-| **S6** | *Rescoped 2026-08-27.* The API is confirmed (§7); the open question is **which of my entities have long-term statistics at all** | `recorder/list_statistic_ids`, then `recorder/statistics_during_period` for the WeatherFlow/Awair entities; measure latency and size | R12, sparkline data sources |
+| **S6** | *Largely closed 2026-08-27.* The dashboard's `statistics-graph` card already renders `mean`/`min`/`max` at `period: 5minute` over 1 day for `sensor.st_00128663_wind_speed`, so statistics demonstrably exist for the entity that needed them. Residual: confirm the same for any *other* series a dashboard wants | `recorder/list_statistic_ids` to enumerate what else is available; measure latency and size | R12, sparkline data sources |
 | **S7** | Do the intended glyphs render at the expected width? | Width-audit the full glyph set in the Pi console, the Pi emulator, and a desktop terminal | R3 |
 | **S8** | ✅ *Partially answered 2026-08-27.* Wish **does** serve a Bubble Tea app over SSH — the harness builds, listens, accepts a session with no login shell, and renders. Outstanding: real dimensions, live resize, **reconnect at a different grid**, and multiple clients at different sizes | Harness in [`docs/spikes/S8-wish-bubbletea/`](../spikes/S8-wish-bubbletea/); run the interactive matrix in its README from the Pi | R4, R7, R10, §8 option C |
 | ~~S9~~ | **Withdrawn 2026-08-27.** Chromium kiosk has already been tried on this Pi: ~10 s to launch, acceptable once loaded. The premise is confirmed by experience, and the measurement could not discriminate between the TUI and screenshot-server options anyway. See §1 | — | — |
