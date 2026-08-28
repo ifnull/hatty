@@ -1,4 +1,6 @@
-# ha-terminality
+# hatty
+
+*Home Assistant + TTY.*
 
 A full-screen terminal dashboard for Home Assistant, designed to be viewed over SSH on
 hardware too weak to run a browser.
@@ -17,6 +19,7 @@ a 7" panel — does nothing but transport keystrokes and paint cells.
 |---|---|
 | [`BRIEF.md`](BRIEF.md) | The original handoff. Never edited. The authority on intent. |
 | [`docs/planning/phase-1-plan.md`](docs/planning/phase-1-plan.md) | The Phase 1 planning package — product definition, MVP, architecture, framework comparison, risks, spikes. |
+| [`docs/planning/prior-art-survey.md`](docs/planning/prior-art-survey.md) | Does an adequate HA TUI already exist? (No.) Phase 2 entry condition. |
 | [`docs/environment.md`](docs/environment.md) | Measured facts: hardware, display, terminal, HA instance. Method and date recorded. |
 | [`docs/decisions/decision-log.md`](docs/decisions/decision-log.md) | Every consequential choice, why, and what would overturn it. |
 | [`docs/reference/`](docs/reference/) | HA screenshots. The 23-51-49 capture is the source of truth for the primary dashboard. |
@@ -45,11 +48,13 @@ explicit list of what it is least confident about. Later phases should maintain 
 
 ## Immediate next steps
 
-1. **Prior-art survey** — do adequate Home Assistant TUIs already exist? A Phase 2 entry
-   condition, and the most likely way this project turns out to be unnecessary (open question O5).
-2. **Spikes S1–S3** — ADS-B event rate, console glyph inventory, and a `subscribe_entities`
-   vs. `state_changed` bandwidth comparison. Cheap, measurement-only, and they make the
-   product review factual.
+1. ~~**Prior-art survey**~~ — **done**. No adequate HA TUI exists; see
+   [the survey](docs/planning/prior-art-survey.md). It raised a better question in its place:
+   whether a server-rendered *screenshot* beats a terminal (open question O10).
+2. **Spikes S1–S3 and S9** — ADS-B event rate, console glyph inventory, a
+   `subscribe_entities` vs. `state_changed` bandwidth comparison, and **what the browser
+   actually costs on this Pi**. S9 matters most: the project's premise is currently inferred
+   rather than measured.
 3. **Phase 2 — product review.** The plan names what it should attack hardest.
 
 ## Not yet done

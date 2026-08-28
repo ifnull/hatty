@@ -23,7 +23,7 @@ Contents follow the twelve deliverables named in the brief.
 
 ## 1. Product definition
 
-**ha-terminality is a full-screen terminal dashboard for Home Assistant, designed to be
+**hatty is a full-screen terminal dashboard for Home Assistant, designed to be
 viewed over SSH on hardware too weak to run a browser.**
 
 It runs on a capable server, holds a live event-driven mirror of Home Assistant state, and
@@ -54,8 +54,23 @@ four A53 cores.
 
 The weaker part of the argument, which Phase 2 should attack: a static generated image
 served to a lightweight viewer, or an existing TUI, might also clear the bar without a
-bespoke application. No survey of existing HA TUIs has been done. **That survey is a Phase 2
-prerequisite** and is listed as an open question below.
+bespoke application.
+
+**The survey has now been done** — see [`prior-art-survey.md`](prior-art-survey.md). No
+adequate TUI exists: the only serious attempt (`bhdr`) is archived at 4 stars and is an
+entity browser rather than a dashboard, and the strongest generic builder (`dashbrew`) is
+polling-only, which is the architecture this project rejects. That closes the TUI half of
+the question.
+
+The *image* half remains open and is the stronger challenge.
+[`homeassistant-dashboard-server`](https://github.com/petterhj/homeassistant-dashboard-server)
+renders Lovelace server-side and ships screenshots to a dumb display, reusing the entire
+existing widget ecosystem for free. Phase 2 should argue this on the merits rather than
+inherit the brief's preference for a terminal. The survey states the counter-case; it does
+not consider it settled.
+
+Note also that the premise itself is still unmeasured: "the browser is too heavy" is an
+inference from 905 MiB total / 369 MiB free, not a measurement. Spike S9 fixes that.
 
 ---
 
@@ -184,8 +199,10 @@ Added during Phase 1:
 
 **For the project**
 
-6. **Do adequate HA TUIs already exist?** No survey has been done. A Phase 2 prerequisite —
-   the case for building anything depends on it.
+6. ~~**Do adequate HA TUIs already exist?**~~ **Closed 2026-08-27** by
+   [`prior-art-survey.md`](prior-art-survey.md). They do not. A successor question is now
+   open and is more interesting: **is a server-rendered screenshot approach a better fit
+   than a TUI?** See §1 and the survey's §4.
 7. ~~**Is history backfill required for sparklines at MVP?**~~ **Closed 2026-08-27** by the
    §7 verification pass. `recorder/statistics_during_period` supports `min`/`mean`/`max`
    directly and cheaply, so backfill is in the MVP. The residual question is an *instance*
@@ -630,7 +647,7 @@ The largest architectural fork in this document.
 
 ### Option A — process per invocation
 
-`ssh dashboard-server ha-dashboard`. Each connection starts a process, opens its own HA
+`ssh dashboard-server hatty`. Each connection starts a process, opens its own HA
 connection, loads state, renders.
 
 *For:* simplest possible model; no daemon, no session manager; a crash affects one session.
@@ -682,9 +699,14 @@ layer that can act on a dashboard's declared font, because font is a client-side
 the app runs on the server:
 
 ```bash
-ha-dash radar     # setfont 8x16  → 100×30, then connect, dashboard=radar
-ha-dash glance    # setfont 16x32 → 50×15,  then connect, dashboard=glance
+hatty-connect radar     # setfont 8x16  → 100×30, then connect, dashboard=radar
+hatty-connect glance    # setfont 16x32 → 50×15,  then connect, dashboard=glance
 ```
+
+Two programs, deliberately named apart: **`hatty`** is the server-side application, and
+**`hatty-connect`** is the Pi-side wrapper that sets the console font and opens the session.
+They run on different machines and do unrelated jobs; sharing a name would invite confusion
+in exactly the situation where it costs most — reading a log or a systemd unit at 2 a.m.
 
 This places font-per-dashboard in the session layer rather than the rendering layer, and it
 gives the appliance model a concrete job beyond auto-launch on login. It also creates an edge
@@ -737,6 +759,11 @@ at. None is an implementation start. Ordered by how much downstream work they un
 | **S6** | *Rescoped 2026-08-27.* The API is confirmed (§7); the open question is **which of my entities have long-term statistics at all** | `recorder/list_statistic_ids`, then `recorder/statistics_during_period` for the WeatherFlow/Awair entities; measure latency and size | R12, sparkline data sources |
 | **S7** | Do the intended glyphs render at the expected width? | Width-audit the full glyph set in the Pi console, the Pi emulator, and a desktop terminal | R3 |
 | **S8** | Does Wish serve a Bubble Tea app over SSH with correct resize? | Hello-world over Wish; resize, detach, reconnect at a different size | R4, R7, §8 option C |
+| **S9** | *Added 2026-08-27 by the prior-art survey.* What does the browser approach actually cost on this Pi? | Chromium kiosk on the Pi 3B with the primary Lovelace dashboard; record time-to-first-paint, time-to-interactive, steady-state RSS, CPU during an ADS-B burst | §1 — the premise of the entire project, currently inferred rather than measured |
+
+**S9 belongs before Phase 2, not after.** It measures the premise the whole project rests
+on. If the browser turns out to be tolerable on this hardware, Phase 2's central question
+answers itself and the scope should shrink dramatically.
 
 **Sequencing note.** S1, S2 and S3 are cheap, measurement-only, and change *scope*
 conversations rather than implementation ones. The brief places prototype specification in
@@ -751,7 +778,7 @@ S4 and S8 must both complete before Phase 4 selects a framework.
 ## 11. Proposed repository structure for the planning phase
 
 ```text
-ha-terminality/
+hatty/
 ├── BRIEF.md                          # original handoff — never edited
 ├── README.md                         # what this is, current phase, how to navigate
 ├── .gitignore                        # secrets backstop (in place)
@@ -799,8 +826,9 @@ The brief's eight phases are sound and the ordering is kept. Three refinements a
 | Phase | Stage | Entry condition | Exit condition |
 |---|---|---|---|
 | 1 | Initial planning | — | **this document** |
-| — | **Spikes S1–S3** *(proposed addition)* | Phase 1 drafted | Measured event rate, glyph inventory, subscription comparison |
-| 2 | CEO / product review | Phase 1 + S1–S3 + prior-art survey | Revised scope; MVP confirmed or replaced |
+| — | **Prior-art survey** | Phase 1 drafted | ✅ **Done 2026-08-27** — [`prior-art-survey.md`](prior-art-survey.md) |
+| — | **Spikes S1–S3, S9** *(proposed addition)* | Phase 1 drafted | Measured event rate, glyph inventory, subscription saving, and the browser's real cost on this Pi |
+| 2 | CEO / product review | Phase 1 + survey + S1–S3 + S9 | Revised scope; MVP confirmed or replaced |
 | 3 | Technical PM review | Phase 2 | Work breakdown, milestones, acceptance criteria, risk register |
 | — | **Spikes S4–S8** *(brief places these in Phase 4)* | Phase 3 | Framework go/no-go evidence |
 | 4 | Engineering / architecture review | Phase 3 + all spikes | **Framework selected**; §8 option chosen; auth model decided |
@@ -815,10 +843,10 @@ The brief's eight phases are sound and the ordering is kept. Three refinements a
 and glyph availability without data. Three cheap measurements make that conversation
 factual. This is the one real deviation from the brief's sequence.
 
-**2. Add a prior-art survey as a Phase 2 entry condition.** No survey of existing Home
-Assistant TUIs has been done. Phase 2 asks "is a custom application justified?" — that
-question cannot be answered honestly without it, and it is the single most likely way this
-project turns out to be unnecessary. It should be done *before* the review, not during.
+**2. ~~Add a prior-art survey as a Phase 2 entry condition.~~ Done 2026-08-27.** See
+[`prior-art-survey.md`](prior-art-survey.md). It closed the TUI question and opened a better
+one — whether a server-rendered *image* beats a terminal — and it added spike S9, which
+measures the premise the project rests on.
 
 **3. Fix the real terminal dimensions before Phase 5.** Not before Phase 4 — the target
 of 100×30 is derived from layout requirements and does not depend on the measurement. But
@@ -828,7 +856,12 @@ responsive breakpoints do, and Phase 5 is where they get fixed.
 
 Offered because a review that only receives the author's framing tends to ratify it:
 
-- **The prior-art gap.** If an adequate HA TUI exists, most of this plan is moot.
+- **The screenshot-server alternative.** The prior-art survey found no adequate TUI but did
+  find a credible rival that reuses all of Lovelace's widgets for free. This is now the
+  strongest form of "is a custom application justified?" and the plan should have to defend
+  against it explicitly.
+- **The unmeasured premise.** Until S9 runs, "the browser is too heavy on this Pi" is an
+  inference. Phase 2 should refuse to ratify scope built on it.
 - **The MVP choice.** §2 proposes building the *personal* dashboard first and admits this
   tests the configuration model least. The counter-case is real.
 - **Whether option C is over-engineering.** A daemon with an SSH front-end is a network
