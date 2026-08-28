@@ -27,3 +27,11 @@ venv/
 *.swp
 .idea/
 .vscode/
+
+# Spike artifacts — generated keys must never be committed
+docs/spikes/**/.ssh/
+spike_host_key
+spike_host_key.pub
+*_ed25519
+*_ed25519.pub
+docs/spikes/S8-wish-bubbletea/s8probe

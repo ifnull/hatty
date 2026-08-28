@@ -20,6 +20,7 @@ a 7" panel — does nothing but transport keystrokes and paint cells.
 | [`BRIEF.md`](BRIEF.md) | The original handoff. Never edited. The authority on intent. |
 | [`docs/planning/phase-1-plan.md`](docs/planning/phase-1-plan.md) | The Phase 1 planning package — product definition, MVP, architecture, framework comparison, risks, spikes. |
 | [`docs/planning/prior-art-survey.md`](docs/planning/prior-art-survey.md) | Does an adequate HA TUI already exist? (No.) Phase 2 entry condition. |
+| [`docs/spikes/`](docs/spikes/) | Measurement harnesses for the open questions. S1, S4, S8 ready to run. |
 | [`docs/environment.md`](docs/environment.md) | Measured facts: hardware, display, terminal, HA instance. Method and date recorded. |
 | [`docs/decisions/decision-log.md`](docs/decisions/decision-log.md) | Every consequential choice, why, and what would overturn it. |
 | [`docs/reference/`](docs/reference/) | HA screenshots. The 23-51-49 capture is the source of truth for the primary dashboard. |

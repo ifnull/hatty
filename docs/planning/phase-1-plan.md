@@ -767,7 +767,7 @@ systemd unit with restart-on-failure is required regardless of which option wins
 | **R7** | **Resize and detach/reattach bugs** | Compounded by deliberate font changes between dashboards | S8; resize matrix testing; layout floor with legible refusal |
 | **R8** | **Unbounded memory growth** | Series buffers on high-frequency sensors over weeks of uptime | Bounded ring buffers by construction; long-running soak test in Phase 8 |
 | **R9** | **Type assumptions about HA state** | 46 helpers, mostly template sensors, several with structured attribute payloads | Declared expected types per binding; defined non-parsing behaviour; fault indicator not zero |
-| **R10** | **Framework API churn** | Textual moves quickly; the app is meant to run untouched for months | Weigh in Phase 4; pin versions; prefer the candidate with the smaller moving surface |
+| **R10** | **Framework API churn** — **confirmed 2026-08-27, and on the Go side** | Building the S8 harness hit a live module rename: `github.com/charmbracelet/ssh` became `charm.land/ssh` at v0.4.3, while `wish v1.4.7` still depends on the old path, so a clean `go mod tidy` fails outright. The plan had flagged churn as a *Textual* concern; the first instance landed on the Go candidate. Phase 4 must weigh this against both, not one | Pin versions explicitly; treat a clean-checkout build as a CI gate; see `docs/spikes/README.md` |
 | **R11** | **Single-host failure** | HA and dashboard share a Proxmox host by design | Accepted for a personal utility; recorded as a decision, not an oversight |
 | **R12** | **History backfill unavailable or expensive** | Sparklines and the 24 h wind chart depend on it | S6; documented degradation to live-accumulation only |
 | **R13** | **Accidental state changes** | Post-MVP, but the display is a *touchscreen* | Confirmation step; visual distinction; deferred entirely from MVP |
@@ -780,6 +780,12 @@ systemd unit with restart-on-failure is required regardless of which option wins
 Each is small, measurement-only, and answers a question this plan could otherwise only guess
 at. None is an implementation start. Ordered by how much downstream work they unblock.
 
+**Harnesses are written and live in [`docs/spikes/`](../spikes/)** — S1, S4 and S8 are ready
+to run, each with a README stating what to check and what to record. Note which machine each
+runs on: S1 and S4 do not involve the Pi at all, and neither does S8's server half. The Pi is
+needed for S2 (glyph coverage) and for S8's interactive matrix, where reconnecting at a
+different grid is the test that matters.
+
 | ID | Question | Method | Unblocks |
 |---|---|---|---|
 | **S1** | *Rescoped 2026-08-27.* Rate is bounded by our own `ha-airspace` publish throttle (default 1/s). The open question is now **payload bytes per update**, not event frequency | Read the deployed `ha-airspace` config for the actual throttle; subscribe and log bytes per update for the airspace and weather entities over one busy period | R1, R15, N2, N3 |
@@ -789,7 +795,7 @@ at. None is an implementation start. Ordered by how much downstream work they un
 | **S5** | What does a frame actually cost over SSH at 100×30? | Instrument bytes written per update for full vs. diff redraw, under S1's measured load | N3, R1, framework decision |
 | **S6** | *Rescoped 2026-08-27.* The API is confirmed (§7); the open question is **which of my entities have long-term statistics at all** | `recorder/list_statistic_ids`, then `recorder/statistics_during_period` for the WeatherFlow/Awair entities; measure latency and size | R12, sparkline data sources |
 | **S7** | Do the intended glyphs render at the expected width? | Width-audit the full glyph set in the Pi console, the Pi emulator, and a desktop terminal | R3 |
-| **S8** | Does Wish serve a Bubble Tea app over SSH with correct resize? | Hello-world over Wish; resize, detach, reconnect at a different size | R4, R7, §8 option C |
+| **S8** | ✅ *Partially answered 2026-08-27.* Wish **does** serve a Bubble Tea app over SSH — the harness builds, listens, accepts a session with no login shell, and renders. Outstanding: real dimensions, live resize, **reconnect at a different grid**, and multiple clients at different sizes | Harness in [`docs/spikes/S8-wish-bubbletea/`](../spikes/S8-wish-bubbletea/); run the interactive matrix in its README from the Pi | R4, R7, R10, §8 option C |
 | ~~S9~~ | **Withdrawn 2026-08-27.** Chromium kiosk has already been tried on this Pi: ~10 s to launch, acceptable once loaded. The premise is confirmed by experience, and the measurement could not discriminate between the TUI and screenshot-server options anyway. See §1 | — | — |
 
 **Sequencing note.** S1, S2 and S3 are cheap, measurement-only, and change *scope*
