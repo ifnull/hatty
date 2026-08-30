@@ -15,7 +15,7 @@ where it has any.
 | [S1](S1-event-payload/) | What do HA state updates actually cost in bytes/sec, and how much does `subscribe_entities` save? | server (or any machine that can reach HA) | ready to run |
 | [S4](S4-textual-over-ssh/) | Can Textual be served over a programmatically owned SSH connection? | server / dev machine | ready to run |
 | [S8](S8-wish-bubbletea/) | Does Wish serve a Bubble Tea app over SSH with correct resize? | server; **Pi as the client** | ✅ partially answered — see below |
-| S2 | Glyph coverage at 8×16 on the panel | **Pi** | one-line test, see `docs/environment.md` |
+| [S2](S2-glyph-coverage/) | Glyph coverage **and width** at 8×16 on the panel | **Pi** | ready to run — `bash check.sh` |
 | S3 | *(merged into S1)* | — | — |
 | ~~S9~~ | ~~Browser cost on the Pi~~ | — | withdrawn — see decision D24 |
 
