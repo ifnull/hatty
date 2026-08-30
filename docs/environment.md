@@ -41,21 +41,30 @@ Measured: 2026-08-26 / 2026-08-27.
 | Locale | `en_US.UTF-8` | `locale` |
 | `stty size` | `32 116` | measured (**see caveat**) |
 
-> **Caveat — the 116×32 measurement is not trusted.**
-> 800 ÷ 116 = 6.90 px per column, and terminal cells have integer pixel widths, so
-> 116 columns is not achievable on an 800×480 panel with any normal font. The most
-> likely explanation is that the command ran inside an SSH session from the desktop,
-> in which case `stty size` reported the *desktop's* window, not the panel.
+> ### ✅ RESOLVED 2026-08-29 — measured on the panel
 >
-> Definitive check, to be run on the Pi:
-> ```bash
-> echo "${SSH_CONNECTION:-LOCAL}"; stty size
+> Spike S2 was run **locally on the panel** (the script confirms `session: LOCAL`), and reports:
+>
 > ```
-> Anything other than `LOCAL` means the reading is the desktop's.
+> terminal: xterm-256color   size: 22 80   colours: 256
+> ```
 >
-> This is **not blocking**. The design target below was derived from layout
-> requirements, not from this measurement. The real number is still wanted before
-> Phase 5 fixes responsive breakpoints.
+> **The panel's real terminal is 80 columns × 22 rows.** The earlier `116 × 32` reading was
+> indeed from an SSH client, as suspected. Open question O9 is closed.
+>
+> **Why 80×22 and not 100×30:** the terminal is running *windowed* on the full Raspberry Pi OS
+> desktop — taskbar, window title bar and a File/Edit/Tabs/Help menu bar together consume
+> roughly 85 px of the 480 px height, and the font is about 10×18 rather than 8×16.
+>
+> | Configuration | Grid |
+> |---|---|
+> | windowed on the desktop, ~10×18 font — **what exists today** | **80 × 22** |
+> | fullscreen, ~10×18 font | 80 × 26 |
+> | fullscreen, 8×16 font — **decision D22 + D23** | **100 × 30** |
+>
+> So the 100×30 target of decision D1 is achievable, but requires *both* a fullscreen terminal
+> and an 8×16 font — neither of which is in place yet. This is precisely the change D22 already
+> calls for (X with no desktop environment, single fullscreen terminal). See decision D38.
 
 ### Font size → grid, at 800×480
 

@@ -27,7 +27,7 @@ fi
 echo
 
 # ---- ruler: every row below must end flush with the | at column 60 ----
-printf '  '; for i in $(seq 1 60); do
+printf '  '; for i in $(seq 1 30); do
   if   [ $((i % 10)) -eq 0 ]; then printf '%d' $(( (i/10) % 10 ))
   elif [ $((i % 5))  -eq 0 ]; then printf '+'
   else printf '.'; fi
@@ -36,25 +36,25 @@ done; printf '|\n\n'
 # $1 glyphs, $2 how many CELLS they should occupy, $3 description.
 # printf %-60s pads by BYTES, not display cells, so it cannot be used here --
 # multi-byte UTF-8 would shift the marker even when the glyph is single-width.
-row () { printf '  %s' "$1"; printf '%*s' "$((60 - $2))" ''; printf '|  %s\n' "$3"; }
+row () { printf '  %s' "$1"; printf '%*s' "$((30 - $2))" ''; printf '|  %s\n' "$3"; }
 
 echo "  REQUIRED -- the design does not work without these"
-row '─│┌┐└┘├┤┬┴┼' 11 'box drawing (panel frames)'
-row '▁▂▃▄▅▆▇█' 8 'block elements (bars, sparklines)'
-row '░▒▓█' 4 'shading (bar backgrounds)'
-row '▌▐▀▄' 4 'half blocks (double-precision bars)'
-row '↑↓→←' 4 'arrows (vertical speed)'
-row '▸▲●⚠' 4 'status glyphs (cursor, warn, ok, alert)'
-row '°%' 2 'units -- degree, percent'
+row '─│┌┐└┘├┤┬┴┼' 11 'box drawing'
+row '▁▂▃▄▅▆▇█' 8 'block elements'
+row '░▒▓█' 4 'shading'
+row '▌▐▀▄' 4 'half blocks'
+row '↑↓→←' 4 'arrows'
+row '▸▲●⚠' 4 'status glyphs'
+row '°%' 2 'degree, percent'
 
 echo
 echo "  WANTED -- trend charts degrade to block elements without these"
-row '⠁⠂⠄⡀⢀⣀⣤⣶⣿⠿⡇⢸' 12 'braille (line charts)'
+row '⠁⠂⠄⡀⢀⣀⣤⣶⣿⠿⡇⢸' 12 'braille'
 
 echo
 echo "  CHECK CAREFULLY -- known width hazards"
-row 'µ ² ³' 5 'micro, superscripts (µg/m³ on the Awair panel)'
-row '· — ×' 5 'middle dot, em dash, times'
+row 'µ ² ³' 5 'micro, superscripts'
+row '· — ×' 5 'dot, em dash, times'
 
 echo
 echo "  colour (decision D34 needs 256):"
@@ -62,7 +62,7 @@ printf '  '
 for n in 238 245 252 240 71 179 167 96 60 67 74 81; do
   printf '\033[38;5;%sm████\033[0m' "$n"
 done
-printf '   chrome label value muted | ok warn alert stale | alt0-3\n'
+printf '\n  chrome label value muted / ok warn alert stale / alt0-3\n'
 
 echo
 cat <<'NOTE'
