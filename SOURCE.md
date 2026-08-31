@@ -17,8 +17,8 @@ Assistant.
 | `internal/render` | **done** | width safety as a structural invariant (D39, C1) |
 | `internal/state` | **done** — `Value`, `Kind`, `Ring` | A3, A4, E3, E4, D3, D42 |
 | `internal/ha` | **done** — protocol, merge, secret | D6, D16, D17, D18, E8 |
-| `internal/config` | next | B2, D4, E5, E6, E10 |
-| `internal/layout` | | B1, D36, D37 |
+| `internal/config` | **done** — grammar, schema, validation | B1, B2, D4, E5, E6, E7, E10 |
+| `internal/layout` | next | D36, D37 |
 | `internal/widget` | | design rounds 3–5 |
 | `internal/server` | | D7, C1, E1, E9 |
 | `cmd/hatty` | | |
@@ -53,7 +53,23 @@ Assistant.
 - `Secret.reveal()` has **exactly one call site**, asserted by parsing the
   package's own AST.
 
-## A bug the tests caught immediately
+- One binding grammar covers **every real shape**: entities, nested
+  watchpoint dicts, indexed forecast entries, collections, and projections
+  across a collection — and resolves them against the live capture.
+- A projection **skips** elements missing a field rather than substituting a
+  zero, which is the same failure as rendering `0.0 mi` for absent lightning.
+- The width budget is checked **at every breakpoint**, so an overflow at 80
+  columns fails even when 44 and 56 are fine.
+- An undeclared `{template}` variable, a malformed guard, a wrong ramp arity,
+  a missing elastic panel, and an elastic panel that would not survive the
+  minimum grid are all load errors — reported **together**, not one at a time.
+- Guard referents are **auto-subscribed**, so a guard cannot silently disable
+  the value it guards.
+- `safety` defaults to true: silence must be opted into.
+- Sort hysteresis defaults to **0** — exact ordering — because the concern
+  driving it is still unmeasured.
+
+## Two bugs the tests caught immediately
 
 `TestRemovalsActuallyRemove` failed on first run. The diff struct used
 `json:"-"` for the removals field — and `encoding/json` reads that tag as
@@ -65,6 +81,14 @@ Exactly the class of silent wrongness D18 was written about, and it would have
 been invisible without a test that asserts the removal actually happened. The
 literal key requires `json:"-,"` with a trailing comma; the field now carries a
 comment saying so, because it looks like a typo and someone will try to fix it.
+
+**Second: the E6 guard rule was implemented backwards.** Validation rejected a
+guard whose referent nothing else subscribed to — and then fired on the
+project's own example dashboard, because a guard referent is *precisely* the
+thing nothing else binds. r3 specifies auto-adding referents to the
+subscription set; rejecting them makes the feature unusable. Implemented as
+`Dashboard.Subscriptions()`, which folds guard referents in, so a guard cannot
+disable what it guards.
 
 ## Running
 

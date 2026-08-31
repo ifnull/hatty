@@ -1,0 +1,73 @@
+name  = "radar"
+title = "hatty · radar"
+
+[display]
+resolution = "800x480"
+font       = "DejaVu Sans Mono:size=8"
+cols       = 100
+rows       = 32
+min_cols   = 44
+min_rows   = 12
+glyphs     = "full"
+colors     = 256
+
+[[panel]]
+type    = "alert_strip"
+reserve = true
+source  = "binary_sensor.airspace_alert_military_close"
+nominal = "{tracked} tracked · {flagged} flagged"
+hold    = "90s"
+
+  [panel.vars]
+  tracked = "sensor.airspace_aircraft_count"
+  flagged = "sensor.airspace_flag_military"
+
+[[panel]]
+type    = "table"
+bind    = "sensor.airspace_flag_military:aircraft[]"
+elastic = 2
+
+  [panel.sort]
+  key = "distance_nm"
+  dir = "asc"
+
+  [[panel.column]]
+  header = "FLIGHT"
+  path   = "flight"
+  width  = 9
+  [[panel.column]]
+  header = "DIST"
+  path   = "distance_nm"
+  width  = 6
+  align  = "right"
+  format = "%.1f"
+  [[panel.column]]
+  header = "ALT"
+  path   = "alt_baro_ft"
+  width  = 8
+  align  = "right"
+  [[panel.column]]
+  header  = "TYPE"
+  path    = "aircraft_type"
+  width   = 6
+  min_cols = 56
+  [[panel.column]]
+  header   = "SQK"
+  path     = "squawk"
+  width    = 5
+  min_cols = 80
+
+[[panel]]
+type    = "detail"
+follows = "table"
+elastic = 1
+
+  [[panel.field]]
+  label = "Last strike"
+  bind  = "event.st_00128663_lightning_strike"
+  format = "relative"
+
+  [[panel.field]]
+  label      = "Strike distance"
+  bind       = "sensor.st_00128663_lightning_average_distance"
+  valid_when = "sensor.st_00128663_lightning_last_distance is available"
