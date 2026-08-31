@@ -10,13 +10,22 @@ font:     DejaVu Sans Mono:size=9, fullscreen
 compositor: labwc (Wayland)
 ```
 
-Earlier runs, same panel, for the font/grid relationship:
+## The font ladder — all measured `LOCAL` on the panel, foot fullscreen
 
-| Terminal | Font | Grid | Cell |
+| Grid | Cell (px) | Char width | Design fit |
 |---|---|---|---|
-| LXTerminal, windowed on the desktop | ~10×18 | 80 × 22 | chrome cost ~85 px |
-| foot fullscreen | small (~size 6) | 133 × 36 | ~6 × 13 px |
-| **foot fullscreen** | **DejaVu Sans Mono size 9** | **80 × 24** | **~10 × 20 px** |
+| 133 × 36 | 6.0 × 13.3 | 1.17 mm | all 9 table columns |
+| 114 × 34 | 7.0 × 14.1 | 1.36 mm | all 9 table columns |
+| **100 × 32** | **8.0 × 15.0** | **1.55 mm** | **all 9 table columns — meets D1 with 2 rows spare** |
+| 80 × 25 | 10.0 × 19.2 | 1.94 mm | drops `OP`, `FLAGS`, `CPA` (D36) |
+
+For comparison, LXTerminal windowed on the desktop gave **80 × 22** — foot fullscreen at the
+same apparent text size gives 80 × 25, and three more rows at no readability cost is the whole
+argument for D22.
+
+**The 100×30 target of decision D1 is confirmed achievable**, at roughly a size-8 font, with two
+rows to spare for the elastic panel (D37). Which grid to *adopt* depends on readability at the
+user's actual seating distance — a judgement no measurement settles.
 
 > **Note on the `session: SSH` warning.** It is a false positive. `foot` was launched from
 > inside an SSH shell and inherited `SSH_CONNECTION`, but the script runs inside
