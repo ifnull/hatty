@@ -1,5 +1,7 @@
 # Phase 7 (round 2) — Adversarial Review of r2
 
+> **All ten findings are closed in [r3](phase-6-engineering-r3.md).**
+
 Attacks [`phase-6-engineering-r2.md`](phase-6-engineering-r2.md). Round 1 attacked r1 and its
 thirteen findings were fixed; **the fixes are new code paths, and new code paths are where bugs
 live.** r2 said so itself in its §13.5. This is that review.

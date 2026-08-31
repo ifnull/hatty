@@ -10,9 +10,10 @@ state, and renders into any terminal that connects to it. The client — a Raspb
 a 7" panel — does nothing but transport keystrokes and paint cells.
 
 > **Status: planning. No implementation.**
-> **Phase 5 complete; Phase 6 at revision 2; Phase 7 at round 2.** Round 1 found 13 problems
-> and all were fixed; round 2 found 10 more, **four of them defects introduced by round 1's own
-> repairs**. A revision 3 is required before implementation. No source tree yet; see D12.
+> **Phase 5 complete; Phase 6 at revision 3; Phase 7 at round 2.** Round 1 found 13 problems,
+> round 2 found 10 more — **four of them defects introduced by round 1's own repairs**. r3
+> closes all ten. The highest-value unrun step is an adversarial round by a *different* model:
+> both rounds so far share an author with the spec. No source tree yet; see D12.
 
 ## Start here
 
@@ -20,7 +21,7 @@ a 7" panel — does nothing but transport keystrokes and paint cells.
 |---|---|
 | [`BRIEF.md`](BRIEF.md) | The original handoff. Never edited. The authority on intent. |
 | [`docs/planning/phase-1-plan.md`](docs/planning/phase-1-plan.md) | The Phase 1 planning package — product definition, MVP, architecture, framework comparison, risks, spikes. |
-| [`docs/planning/phase-6-engineering-r2.md`](docs/planning/phase-6-engineering-r2.md) | **Current spec.** Closes all 13 Phase 7 findings; adds the decision-oriented `home` screen. |
+| [`docs/planning/phase-6-engineering-r3.md`](docs/planning/phase-6-engineering-r3.md) | **Current spec.** Closes round-2's ten findings. r1 and r2 retained as the record of what each round attacked. |
 | [`docs/planning/weatherflow-data-audit.md`](docs/planning/weatherflow-data-audit.md) | HA vs. the vendor app. Lightning is genuinely broken; two mockup bindings were wrong. |
 | [`docs/planning/phase-7-adversarial-r2.md`](docs/planning/phase-7-adversarial-r2.md) | Round 2. Ten findings — four are defects introduced by round 1's own fixes. |
 | [`docs/planning/phase-7-adversarial.md`](docs/planning/phase-7-adversarial.md) | 13 findings against the Phase 6 spec. Four would ship broken; three are invariants that fail at runtime; two are security holes. |
@@ -58,10 +59,10 @@ explicit list of what it is least confident about. Later phases should maintain 
 
 ## Immediate next steps
 
-1. **Phase 6 revision 3** against round-2 findings E1–E10. E3 (statistics corrections
-   discarded) and E8 (token on the protocol-trace path) first.
+1. **An adversarial round by a different model.** Two rounds have shared an author with the
+   spec; the finding rate has not converged (13, then 10, four of which were self-inflicted).
 2. **Phase 8** — QA and test strategy.
-3. Implementation, once a round of adversarial review finds nothing new.
+3. Implementation, once a round finds nothing structural.
 3. **Phase 2 — product review.** The plan names what it should attack hardest.
 
 ## Not yet done
