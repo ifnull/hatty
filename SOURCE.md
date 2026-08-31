@@ -15,7 +15,7 @@ Assistant.
 | Package | Status | Closes |
 |---|---|---|
 | `internal/render` | **done** | width safety as a structural invariant (D39, C1) |
-| `internal/state` | **done** — `Value`, `Kind`, `Ring` | A3, A4, E3, E4, D3, D42 |
+| `internal/state` | **done** — `Value`, `Ring`, `Store` | A3, A4, D3, D6, E3, E4, R1, R15 |
 | `internal/ha` | **done** — protocol, merge, secret | D6, D16, D17, D18, E8 |
 | `internal/config` | **done** — grammar, schema, validation | B1, B2, D4, E5, E6, E7, E10 |
 | `internal/layout` | **done** — solver, column drop | B1, D36, D37 |
@@ -134,6 +134,20 @@ GOOS=linux GOARCH=arm64 go build ./...   # the deployment target
 - A missing or empty `authorized_keys` **refuses to start** (C1), an
   unauthorised key is rejected, and a reload that would empty the list is
   refused rather than silently opening or closing the door.
+
+- Events are **coalesced**: 200 events inside one tick window produce a single
+  snapshot, which is the R1/R15 mitigation.
+- An **idle store does not churn** frames, but still publishes on the heartbeat
+  so staleness is re-evaluated — otherwise a source that went quiet would never
+  be noticed.
+- A snapshot held across an update is **unchanged by it** (D3), while the next
+  snapshot sees the new value.
+- `Ingest` **never blocks**, even with nothing draining: falling behind Home
+  Assistant is recoverable, deadlocking the protocol reader is not.
+- The single-writer claim is checked by the **race detector** against eight
+  concurrent producers and eight concurrent readers.
+- The real capture replays through the whole `ha` → `state` path leaving every
+  entity's attributes intact.
 
 ## E1 verified on hardware
 
