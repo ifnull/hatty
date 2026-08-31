@@ -10,8 +10,9 @@ state, and renders into any terminal that connects to it. The client — a Raspb
 a 7" panel — does nothing but transport keystrokes and paint cells.
 
 > **Status: planning. No implementation.**
-> Currently at **Phase 1 complete, awaiting Phase 2 (product review)**.
-> There is deliberately no source tree; see decision D12.
+> **Phase 5 (design) and Phase 6 (engineering spec) are complete.** Next is Phase 7 —
+> adversarial review, whose job is to break the Phase 6 spec.
+> There is still deliberately no source tree; see decision D12.
 
 ## Start here
 
@@ -19,6 +20,8 @@ a 7" panel — does nothing but transport keystrokes and paint cells.
 |---|---|
 | [`BRIEF.md`](BRIEF.md) | The original handoff. Never edited. The authority on intent. |
 | [`docs/planning/phase-1-plan.md`](docs/planning/phase-1-plan.md) | The Phase 1 planning package — product definition, MVP, architecture, framework comparison, risks, spikes. |
+| [`docs/planning/phase-6-engineering.md`](docs/planning/phase-6-engineering.md) | Implementation-ready spec: modules, concurrency, state, config schema, widget contracts, tests. |
+| [`docs/design/`](docs/design/) | Phase 5. Five rounds; `README-v3` (tables), `README-v4` (colour), `README-v5` (responsive) are current. |
 | [`docs/planning/prior-art-survey.md`](docs/planning/prior-art-survey.md) | Does an adequate HA TUI already exist? (No.) Phase 2 entry condition. |
 | [`docs/planning/dashboard-source-analysis.md`](docs/planning/dashboard-source-analysis.md) | The primary dashboard's Lovelace YAML read as a requirements document. |
 | [`docs/planning/airspace-entity-model.md`](docs/planning/airspace-entity-model.md) | The ha-airspace entity/attribute contract the Radar panel binds against. |
@@ -51,13 +54,10 @@ explicit list of what it is least confident about. Later phases should maintain 
 
 ## Immediate next steps
 
-1. ~~**Prior-art survey**~~ — **done**. No adequate HA TUI exists; see
-   [the survey](docs/planning/prior-art-survey.md). It raised a better question in its place:
-   whether a server-rendered *screenshot* beats a terminal (open question O10).
-2. **Spikes S1–S3 and S9** — ADS-B event rate, console glyph inventory, a
-   `subscribe_entities` vs. `state_changed` bandwidth comparison, and **what the browser
-   actually costs on this Pi**. S9 matters most: the project's premise is currently inferred
-   rather than measured.
+1. **Phase 7 — adversarial review.** The Phase 6 spec ends with a ranked list of its own
+   weakest points; that list is the agenda.
+2. **Spike S1** — payload bytes per update, which supplies the still-unquantified N2 and N3.
+   The only spike left; S2 passed, S4 and S9 were withdrawn.
 3. **Phase 2 — product review.** The plan names what it should attack hardest.
 
 ## Not yet done
