@@ -20,7 +20,8 @@ Assistant.
 | `internal/config` | **done** — grammar, schema, validation | B1, B2, D4, E5, E6, E7, E10 |
 | `internal/layout` | **done** — solver, column drop | B1, D36, D37 |
 | `internal/widget` | **done** — table, alert strip, detail, bar, status | D33, D34, D36, D41, E2 |
-| `internal/server` | next | D7, C1, E1, E9 |
+| `internal/server` | **partial** — sink, authorized_keys | A1, C1, E1, E9 |
+| `internal/server` — wish wiring | next | D7 |
 | `cmd/hatty` | | |
 
 ## What is already enforced by a test
@@ -118,6 +119,21 @@ go vet ./...
 GOOS=linux GOARCH=arm64 go build ./...   # the deployment target
 ```
 
+
+- **`Push` never blocks**, even against a permanently wedged consumer — 10,000
+  pushes to a session whose writer never returns complete immediately. This is
+  the property that isolates the store, and the one r1's design did not have.
+- A slow consumer receives **only the newest frame**; 100 pushes during a stall
+  collapse to a handful, ending on frame 100.
+- A **300 ms stall does not tear the session down** — slowness is not death
+  (E1). r2's 750 ms reaper would have blanked the dashboard on every ordinary
+  Wi-Fi hiccup.
+- A **write error does**, because that is confirmed channel death and the only
+  teardown trigger.
+- **200 session lifecycles leak no goroutines**, verified under `-race`.
+- A missing or empty `authorized_keys` **refuses to start** (C1), an
+  unauthorised key is rejected, and a reload that would empty the list is
+  refused rather than silently opening or closing the door.
 
 ## Findings from implementation
 
