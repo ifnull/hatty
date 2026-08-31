@@ -10,9 +10,9 @@ state, and renders into any terminal that connects to it. The client — a Raspb
 a 7" panel — does nothing but transport keystrokes and paint cells.
 
 > **Status: planning. No implementation.**
-> **Phases 5, 6 and 7 are complete.** Phase 7 found 13 problems with the Phase 6 spec;
-> seven of them must be fixed before implementation. There is still deliberately no source
-> tree; see decision D12.
+> **Phase 5 complete; Phase 6 at revision 2; Phase 7 at round 2.** Round 1 found 13 problems
+> and all were fixed; round 2 found 10 more, **four of them defects introduced by round 1's own
+> repairs**. A revision 3 is required before implementation. No source tree yet; see D12.
 
 ## Start here
 
@@ -22,6 +22,7 @@ a 7" panel — does nothing but transport keystrokes and paint cells.
 | [`docs/planning/phase-1-plan.md`](docs/planning/phase-1-plan.md) | The Phase 1 planning package — product definition, MVP, architecture, framework comparison, risks, spikes. |
 | [`docs/planning/phase-6-engineering-r2.md`](docs/planning/phase-6-engineering-r2.md) | **Current spec.** Closes all 13 Phase 7 findings; adds the decision-oriented `home` screen. |
 | [`docs/planning/weatherflow-data-audit.md`](docs/planning/weatherflow-data-audit.md) | HA vs. the vendor app. Lightning is genuinely broken; two mockup bindings were wrong. |
+| [`docs/planning/phase-7-adversarial-r2.md`](docs/planning/phase-7-adversarial-r2.md) | Round 2. Ten findings — four are defects introduced by round 1's own fixes. |
 | [`docs/planning/phase-7-adversarial.md`](docs/planning/phase-7-adversarial.md) | 13 findings against the Phase 6 spec. Four would ship broken; three are invariants that fail at runtime; two are security holes. |
 | [`docs/planning/phase-6-engineering.md`](docs/planning/phase-6-engineering.md) | Implementation-ready spec: modules, concurrency, state, config schema, widget contracts, tests. |
 | [`docs/design/`](docs/design/) | Phase 5. Five rounds; `README-v3` (tables), `README-v4` (colour), `README-v5` (responsive) are current. |
@@ -57,10 +58,10 @@ explicit list of what it is least confident about. Later phases should maintain 
 
 ## Immediate next steps
 
-1. **Spike S1 first** — Phase 7 finding D1 makes it load-bearing for two other findings, so
-   it now blocks implementation rather than merely informing it.
-2. **Revise Phase 6** against findings A1–A4, B1–B3 and C1–C2.
-3. **Phase 8** — QA and test strategy, then implementation.
+1. **Phase 6 revision 3** against round-2 findings E1–E10. E3 (statistics corrections
+   discarded) and E8 (token on the protocol-trace path) first.
+2. **Phase 8** — QA and test strategy.
+3. Implementation, once a round of adversarial review finds nothing new.
 3. **Phase 2 — product review.** The plan names what it should attack hardest.
 
 ## Not yet done
