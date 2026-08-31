@@ -252,7 +252,7 @@ def report(s):
 
 def main():
     ap = argparse.ArgumentParser(description="S1 — measure HA state update cost")
-    ap.add_argument("--url", default="ws://ha.local:8123/api/websocket")
+    ap.add_argument("--url", default="ws://ha.home.arpa:8123/api/websocket")
     ap.add_argument("--mode", choices=["entities", "events"], default="entities")
     ap.add_argument("--seconds", type=int, default=300)
     ap.add_argument("--entities", type=lambda v: [e.strip() for e in v.split(",") if e.strip()])

@@ -248,10 +248,12 @@ is a thin client and D29's deployment story is copying a cross-compiled binary.
 ### Home Assistant is reachable
 
 ```
-ha.local  →  192.168.1.3   :8123 OPEN
+ha            →  192.168.1.3   :8123 OPEN
+ha.home.arpa  →  192.168.1.3   :8123 OPEN   (canonical, RFC 8375)
+ha.local      →  192.168.1.3   :8123 OPEN   (mDNS)
 ```
 
-Note the hostname: **`ha.local`**, not `homeassistant.local`. Spike S1's default URL should be
+Note the hostname: **`ha.home.arpa`** (also `ha` and `ha.local`), not `homeassistant.local`. Spike S1's default URL should be
 corrected. With reachability confirmed, S1 needs only a token to run — and Phase 7 finding D1
 makes it blocking.
 
