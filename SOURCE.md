@@ -16,8 +16,8 @@ Assistant.
 |---|---|---|
 | `internal/render` | **done** | width safety as a structural invariant (D39, C1) |
 | `internal/state` | **done** — `Value`, `Kind`, `Ring` | A3, A4, E3, E4, D3, D42 |
-| `internal/config` | next | B2, D4, E6, E10 |
-| `internal/ha` | | D6, D17, D18, E5, E8 |
+| `internal/ha` | **done** — protocol, merge, secret | D6, D16, D17, D18, E8 |
+| `internal/config` | next | B2, D4, E5, E6, E10 |
 | `internal/layout` | | B1, D36, D37 |
 | `internal/widget` | | design rounds 3–5 |
 | `internal/server` | | D7, C1, E1, E9 |
@@ -41,6 +41,30 @@ Assistant.
 - Capacity is bounded: 1,000 writes into an 8-bucket ring retain exactly 8.
 - A binding with no declared cadence **never** goes stale, even after 30 days.
 - Only `Valid` and `Stale` are renderable as content.
+- A state-only change **does not drop** an entity's other attributes, and a
+  `-` removal **actually removes** — the two silent data-loss modes D18 exists
+  to prevent.
+- The **real 120-frame capture replays** without loss: 119 change diffs applied,
+  no entity emptied, list-valued attributes intact.
+- Message ids are strictly increasing and reset per connection (D17), and the
+  generator is concurrency-safe.
+- The auth frame carries the **real** token — so authentication works — and
+  `RedactFrame` scrubs it before logging.
+- `Secret.reveal()` has **exactly one call site**, asserted by parsing the
+  package's own AST.
+
+## A bug the tests caught immediately
+
+`TestRemovalsActuallyRemove` failed on first run. The diff struct used
+`json:"-"` for the removals field — and `encoding/json` reads that tag as
+*"never encode this field"*, so removals silently decoded to `nil` and every
+attribute deletion was dropped.
+
+No error, no panic; just a dashboard showing values Home Assistant had deleted.
+Exactly the class of silent wrongness D18 was written about, and it would have
+been invisible without a test that asserts the removal actually happened. The
+literal key requires `json:"-,"` with a trailing comma; the field now carries a
+comment saying so, because it looks like a typo and someone will try to fix it.
 
 ## Running
 
