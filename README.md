@@ -20,6 +20,8 @@ a 7" panel — does nothing but transport keystrokes and paint cells.
 |---|---|
 | [`BRIEF.md`](BRIEF.md) | The original handoff. Never edited. The authority on intent. |
 | [`docs/planning/phase-1-plan.md`](docs/planning/phase-1-plan.md) | The Phase 1 planning package — product definition, MVP, architecture, framework comparison, risks, spikes. |
+| [`docs/planning/phase-6-engineering-r2.md`](docs/planning/phase-6-engineering-r2.md) | **Current spec.** Closes all 13 Phase 7 findings; adds the decision-oriented `home` screen. |
+| [`docs/planning/weatherflow-data-audit.md`](docs/planning/weatherflow-data-audit.md) | HA vs. the vendor app. Lightning is genuinely broken; two mockup bindings were wrong. |
 | [`docs/planning/phase-7-adversarial.md`](docs/planning/phase-7-adversarial.md) | 13 findings against the Phase 6 spec. Four would ship broken; three are invariants that fail at runtime; two are security holes. |
 | [`docs/planning/phase-6-engineering.md`](docs/planning/phase-6-engineering.md) | Implementation-ready spec: modules, concurrency, state, config schema, widget contracts, tests. |
 | [`docs/design/`](docs/design/) | Phase 5. Five rounds; `README-v3` (tables), `README-v4` (colour), `README-v5` (responsive) are current. |
