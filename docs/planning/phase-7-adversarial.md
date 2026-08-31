@@ -189,7 +189,7 @@ If it is the latter, R1 returns and A2 becomes considerably worse.
 **Required:** S1 must run before implementation begins, not after. It is the only spike left and
 it is now load-bearing for two findings.
 
-### D2. The bubbletea v1 / v2 split is an unexamined dependency trap
+### D2. ~~The bubbletea v1 / v2 split is an unexamined dependency trap~~ — RESOLVED 2026-08-31
 
 The build already broke once on the `charmbracelet/ssh` → `charm.land/ssh` rename (R10, spike
 S8). There is a second version fault line: **ntcharts publishes separate v1 and v2 branches**,
@@ -199,8 +199,26 @@ Three libraries, two major-version lanes, and one already-observed rename. If `w
 Bubble Tea v1 while ntcharts development moves to v2, the chart library and the SSH server
 cannot both be current.
 
-**Required:** establish which lane is coherent *before* writing code — a throwaway build with
-all three pinned together. This is an hour that prevents a rewrite.
+**Resolved by doing it.** A throwaway module importing all four builds, links and runs:
+
+```
+github.com/charmbracelet/bubbletea  v1.3.10
+github.com/charmbracelet/lipgloss   v1.1.0
+github.com/charmbracelet/wish       v1.4.7
+github.com/NimbleMarkets/ntcharts   v0.5.1        (main branch, Bubble Tea v1)
+github.com/charmbracelet/ssh        v0.0.0-20250128164007-98fd5ae11894  (pinned pre-rename)
+```
+
+`timeserieslinechart` and `sparkline` — the two ntcharts components the design actually needs
+(D32) — instantiate alongside a `wish` server in one binary. Cross-compiles clean to
+`linux/arm64`: a **4.8 MB static binary**, which is the deployment story D29 promised.
+
+The `charmbracelet/ssh` pin remains mandatory; without it `go mod tidy` resolves v0.4.3, which
+declares itself as `charm.land/ssh`, and the build fails on a module-path mismatch. That pin
+belongs in the real `go.mod` with a comment, not rediscovered later.
+
+The Bubble Tea v1/v2 fault line is real but not yet a problem: ntcharts' **v1 branch is
+current at v0.5.1** and works with the wish that exists. Revisit only if wish moves to v2.
 
 ### D3. Snapshot immutability is required but never stated
 

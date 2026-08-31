@@ -233,3 +233,50 @@ Two consequences carried into the architecture:
 The integration also binds entity availability to `airspace/status`, so entities go
 `unavailable` when the service stops rather than showing stale values — the staleness
 discipline this project wants, already handled upstream for this source.
+
+
+---
+
+## Deployment target — `control-panel-mini`
+
+Direct SSH access established 2026-08-31 (passwordless key, user-provided). Same hardware as
+the measured panel: Raspberry Pi 3B rev 1.2, aarch64, 905 MiB, 800×480 DSI.
+
+Installed and relevant: `foot`, `cage`, `python3`. **No Go toolchain** — correct, since the Pi
+is a thin client and D29's deployment story is copying a cross-compiled binary.
+
+### Home Assistant is reachable
+
+```
+ha.local  →  192.168.1.3   :8123 OPEN
+```
+
+Note the hostname: **`ha.local`**, not `homeassistant.local`. Spike S1's default URL should be
+corrected. With reachability confirmed, S1 needs only a token to run — and Phase 7 finding D1
+makes it blocking.
+
+### Measured cost of the desktop — evidence for D22
+
+Resident set, largest first, with a desktop session running:
+
+| Process | RSS |
+|---|---|
+| `x-terminal-emul` (LXTerminal) | 41.8 MB |
+| `wf-panel-pi` | 38.9 MB |
+| `labwc` | 27.9 MB |
+| `pcmanfm` | 15.8 MB |
+| **`foot`** | **14.5 MB** |
+| `cups-browsed` | 16.4 MB |
+| `cupsd` | 8.7 MB |
+
+Three things this settles, which were previously estimates:
+
+1. **`foot` is ~2.9× lighter than LXTerminal** — 14.5 MB against 41.8 MB, measured rather than
+   assumed. The terminal switch pays for itself before any of its other advantages.
+2. **Desktop chrome costs ~83 MB** (`wf-panel-pi` + `pcmanfm` + `labwc`). A `cage` kiosk
+   replaces all three with one compositor. `cage` is already installed.
+3. **CUPS is resident at ~25 MB** on a machine that will never print. Free memory for the
+   asking, unrelated to hatty but worth noting while the appliance is being built.
+
+At the time of measurement 266 MB was in use with 639 MB available — better than the 536 MB
+recorded during the original survey, when a heavier session was running.
