@@ -19,8 +19,8 @@ Assistant.
 | `internal/ha` | **done** — protocol, merge, secret | D6, D16, D17, D18, E8 |
 | `internal/config` | **done** — grammar, schema, validation | B1, B2, D4, E5, E6, E7, E10 |
 | `internal/layout` | **done** — solver, column drop | B1, D36, D37 |
-| `internal/widget` | next | design rounds 3–5 |
-| `internal/server` | | D7, C1, E1, E9 |
+| `internal/widget` | **done** — table, alert strip, detail, bar, status | D33, D34, D36, D41, E2 |
+| `internal/server` | next | D7, C1, E1, E9 |
 | `cmd/hatty` | | |
 
 ## What is already enforced by a test
@@ -117,3 +117,44 @@ go test ./...
 go vet ./...
 GOOS=linux GOARCH=arm64 go build ./...   # the deployment target
 ```
+
+
+## Findings from implementation
+
+Rendering a real frame surfaced things five rounds of ASCII mockups did not.
+
+### F1 — the elastic panel can absorb rows it cannot use
+
+At 100×32 the composed `radar` frame leaves **sixteen blank rows**. The detail
+pane holds the elastic rank (D37 refined), takes all the leftover, and then has
+only four fields to draw — so the trapped space D37 exists to eliminate simply
+moved from the bottom of the frame into the middle of a panel.
+
+Both candidate panels are **data-bounded**: the table shows however many
+contacts are flagged, the detail pane however many fields the record has.
+Neither can meaningfully expand. Elasticity assumed at least one panel would
+grow to fit, and at this grid none does.
+
+Two ways out, and the choice is a design decision rather than a bug fix:
+
+- give the detail pane the **full** `ha-airspace` record — registration,
+  operator, closest-approach timing, flags, `db_metadata` — which is a dozen
+  fields and genuinely fills the space (this is what D37's rationale assumed);
+- or let a panel declare a **maximum** height, so leftover falls through to the
+  next elastic rank instead of pooling in a panel that cannot use it.
+
+Recorded rather than fixed: it changes the layout contract, and the contract
+has already been through three revisions and two adversarial rounds.
+
+### F2 — panels have no chrome
+
+The Phase 5 mockups drew box-drawing borders and titled rules between panels.
+The widgets render bare content. Cosmetic, but it is a real gap between the
+approved design and the implementation, and the borders consume rows the
+solver currently hands to panel content.
+
+### F3 — headers must share their column's alignment
+
+Fixed. A right-aligned numeric column under a left-aligned header breaks the
+scanning the table's whole design rests on: the eye compares columns, not
+values, and a misaligned header defeats that.

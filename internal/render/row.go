@@ -19,12 +19,13 @@ const (
 // composition" is closed structurally rather than by care.
 type Style struct {
 	FG   int // 256-colour index; 0 means unset
+	BG   int // 256-colour index; 0 means unset
 	Bold bool
 	Dim  bool
 }
 
 func (s Style) wrap(text string) string {
-	if s.FG == 0 && !s.Bold && !s.Dim {
+	if s.FG == 0 && s.BG == 0 && !s.Bold && !s.Dim {
 		return text
 	}
 	var b strings.Builder
@@ -36,6 +37,9 @@ func (s Style) wrap(text string) string {
 	}
 	if s.FG != 0 {
 		fmt.Fprintf(&b, "\x1b[38;5;%dm", s.FG)
+	}
+	if s.BG != 0 {
+		fmt.Fprintf(&b, "\x1b[48;5;%dm", s.BG)
 	}
 	b.WriteString(text)
 	b.WriteString("\x1b[0m")
