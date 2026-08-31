@@ -18,8 +18,8 @@ Assistant.
 | `internal/state` | **done** — `Value`, `Kind`, `Ring` | A3, A4, E3, E4, D3, D42 |
 | `internal/ha` | **done** — protocol, merge, secret | D6, D16, D17, D18, E8 |
 | `internal/config` | **done** — grammar, schema, validation | B1, B2, D4, E5, E6, E7, E10 |
-| `internal/layout` | next | D36, D37 |
-| `internal/widget` | | design rounds 3–5 |
+| `internal/layout` | **done** — solver, column drop | B1, D36, D37 |
+| `internal/widget` | next | design rounds 3–5 |
 | `internal/server` | | D7, C1, E1, E9 |
 | `cmd/hatty` | | |
 
@@ -68,8 +68,18 @@ Assistant.
 - `safety` defaults to true: silence must be opted into.
 - Sort hysteresis defaults to **0** — exact ordering — because the concern
   driving it is still unmeasured.
+- **Every row of the grid is assigned** at all seven verified breakpoints, with
+  no gap and no overlap.
+- Reserved panels (alert strip, status bar) survive at **every** size from 12
+  rows to 32.
+- Panels drop by rank, lowest first; the table outlives the trend and the
+  detail pane.
+- When the top-ranked elastic panel is dropped, the next one **inherits** the
+  leftover rows — the B1 failure, tested directly.
+- Columns drop by declared minimum width, and the surviving set **fits** at
+  every breakpoint from 44 to 100.
 
-## Two bugs the tests caught immediately
+## Three bugs the tests caught immediately
 
 `TestRemovalsActuallyRemove` failed on first run. The diff struct used
 `json:"-"` for the removals field — and `encoding/json` reads that tag as
@@ -89,6 +99,16 @@ thing nothing else binds. r3 specifies auto-adding referents to the
 subscription set; rejecting them makes the feature unusable. Implemented as
 `Dashboard.Subscriptions()`, which folds guard referents in, so a guard cannot
 disable what it guards.
+
+**Third: the layout solver squeezed the wrong panels.** Panels declare a
+`DropRank` ordering removal, but the shrink step chose victims by *largest
+slack* — which is rank-blind. At a 12-row grid it produced `table:3 detail:3
+trend:4`: the panel that would be dropped first held the most rows, while the
+table — the content — sat at its minimum.
+
+Not a crash, and not obviously wrong from the code. It surfaced only because a
+test printed the actual row assignment at a tight grid. Shrinking now walks the
+same ascending `DropRank` as dropping, so importance decides both.
 
 ## Running
 
