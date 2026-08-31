@@ -10,9 +10,9 @@ state, and renders into any terminal that connects to it. The client — a Raspb
 a 7" panel — does nothing but transport keystrokes and paint cells.
 
 > **Status: planning. No implementation.**
-> **Phase 5 (design) and Phase 6 (engineering spec) are complete.** Next is Phase 7 —
-> adversarial review, whose job is to break the Phase 6 spec.
-> There is still deliberately no source tree; see decision D12.
+> **Phases 5, 6 and 7 are complete.** Phase 7 found 13 problems with the Phase 6 spec;
+> seven of them must be fixed before implementation. There is still deliberately no source
+> tree; see decision D12.
 
 ## Start here
 
@@ -20,6 +20,7 @@ a 7" panel — does nothing but transport keystrokes and paint cells.
 |---|---|
 | [`BRIEF.md`](BRIEF.md) | The original handoff. Never edited. The authority on intent. |
 | [`docs/planning/phase-1-plan.md`](docs/planning/phase-1-plan.md) | The Phase 1 planning package — product definition, MVP, architecture, framework comparison, risks, spikes. |
+| [`docs/planning/phase-7-adversarial.md`](docs/planning/phase-7-adversarial.md) | 13 findings against the Phase 6 spec. Four would ship broken; three are invariants that fail at runtime; two are security holes. |
 | [`docs/planning/phase-6-engineering.md`](docs/planning/phase-6-engineering.md) | Implementation-ready spec: modules, concurrency, state, config schema, widget contracts, tests. |
 | [`docs/design/`](docs/design/) | Phase 5. Five rounds; `README-v3` (tables), `README-v4` (colour), `README-v5` (responsive) are current. |
 | [`docs/planning/prior-art-survey.md`](docs/planning/prior-art-survey.md) | Does an adequate HA TUI already exist? (No.) Phase 2 entry condition. |
@@ -54,10 +55,10 @@ explicit list of what it is least confident about. Later phases should maintain 
 
 ## Immediate next steps
 
-1. **Phase 7 — adversarial review.** The Phase 6 spec ends with a ranked list of its own
-   weakest points; that list is the agenda.
-2. **Spike S1** — payload bytes per update, which supplies the still-unquantified N2 and N3.
-   The only spike left; S2 passed, S4 and S9 were withdrawn.
+1. **Spike S1 first** — Phase 7 finding D1 makes it load-bearing for two other findings, so
+   it now blocks implementation rather than merely informing it.
+2. **Revise Phase 6** against findings A1–A4, B1–B3 and C1–C2.
+3. **Phase 8** — QA and test strategy, then implementation.
 3. **Phase 2 — product review.** The plan names what it should attack hardest.
 
 ## Not yet done
