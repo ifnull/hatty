@@ -20,7 +20,10 @@ set -u
 echo
 echo "  terminal: ${TERM:-unset}   size: $(stty size 2>/dev/null || echo unknown)   colours: $(tput colors 2>/dev/null || echo unknown)"
 if [ -n "${SSH_CONNECTION:-}" ]; then
-  echo "  session:  SSH -- WARNING: the size above is your client, not the panel"
+  echo "  session:  SSH_CONNECTION is set."
+  echo "            If you launched this terminal locally (e.g. foot on the panel) the"
+  echo "            size above is still the panel: stty reports the terminal being"
+  echo "            rendered into. Only if you are viewing a REMOTE client is it wrong."
 else
   echo "  session:  LOCAL -- the size above is this display"
 fi
