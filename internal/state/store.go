@@ -71,6 +71,10 @@ type Store struct {
 	// dashboard whose source went quiet would never notice.
 	Heartbeat time.Duration
 
+	// stopped is closed when Run returns, so Subscribe and the unsubscribe
+	// function cannot block forever against a store that has shut down.
+	stopped chan struct{}
+
 	clock func() time.Time
 }
 
@@ -86,6 +90,7 @@ func NewStore() *Store {
 	return &Store{
 		in:        make(chan *ha.Event, 64),
 		subs:      make(chan subReq),
+		stopped:   make(chan struct{}),
 		snap:      &Snapshot{m: map[string]*Entity{}},
 		Heartbeat: time.Second,
 		clock:     time.Now,
@@ -113,16 +118,41 @@ func (s *Store) Ingest(ev *ha.Event) {
 }
 
 // Subscribe registers a callback invoked with each published snapshot. The
-// returned function unsubscribes.
+// returned function unsubscribes, and BLOCKS until the writer has acknowledged
+// it.
+//
+// The first implementation made unsubscribe best-effort -- a select with a
+// default on an unbuffered channel. When the writer happened to be publishing,
+// the send fell through and the unsubscribe was SILENTLY DROPPED, leaving a
+// dead session's callback wired to a live store. That is a leak of exactly the
+// kind A1 was about, and it is invisible: nothing errors, the callback simply
+// keeps firing forever. Unsubscribing must not be best-effort.
 func (s *Store) Subscribe(fn func(*Snapshot)) func() {
 	resp := make(chan int, 1)
-	s.subs <- subReq{fn: fn, resp: resp}
-	id := <-resp
+	select {
+	case s.subs <- subReq{fn: fn, resp: resp}:
+	case <-s.stopped:
+		return func() {}
+	}
+	var id int
+	select {
+	case id = <-resp:
+	case <-s.stopped:
+		return func() {}
+	}
+	var once sync.Once
 	return func() {
-		select {
-		case s.subs <- subReq{id: id, drop: true, resp: make(chan int, 1)}:
-		default:
-		}
+		once.Do(func() {
+			ack := make(chan int, 1)
+			select {
+			case s.subs <- subReq{id: id, drop: true, resp: ack}:
+				select {
+				case <-ack:
+				case <-s.stopped:
+				}
+			case <-s.stopped:
+			}
+		})
 	}
 }
 
@@ -140,6 +170,7 @@ func (s *Store) Snapshot() *Snapshot {
 // load of ~5.6 msg/s (spike S1) a 4 Hz tick collapses bursts into one frame,
 // and the mechanism must exist before a chattier source appears.
 func (s *Store) Run(ctx context.Context, tick time.Duration) {
+	defer close(s.stopped)
 	cache := ha.NewCache()
 	subs := map[int]func(*Snapshot){}
 	nextID := 1

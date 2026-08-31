@@ -81,7 +81,7 @@ Assistant.
 - Columns drop by declared minimum width, and the surviving set **fits** at
   every breakpoint from 44 to 100.
 
-## Three bugs the tests caught immediately
+## Four bugs the tests caught immediately
 
 `TestRemovalsActuallyRemove` failed on first run. The diff struct used
 `json:"-"` for the removals field — and `encoding/json` reads that tag as
@@ -111,6 +111,19 @@ table — the content — sat at its minimum.
 Not a crash, and not obviously wrong from the code. It surfaced only because a
 test printed the actual row assignment at a tight grid. Shrinking now walks the
 same ascending `DropRank` as dropping, so importance decides both.
+
+**Fourth: unsubscribing from the store could silently fail.** The unsubscribe
+function sent on an unbuffered channel with a `select` and a `default`. When the
+writer happened to be publishing, the send fell through the default and the
+unsubscribe was **dropped without error** — leaving a dead session's callback
+wired to a live store, firing forever.
+
+That is a leak of precisely the kind A1 was written about, arriving somewhere
+nobody was looking, and it is invisible from the outside: nothing errors, the
+callback simply never stops. It only appeared because the test asserted the
+callback *stopped* rather than that unsubscribe returned. Unsubscribe now blocks
+until the writer acknowledges, with a `stopped` channel so it cannot hang
+against a shut-down store.
 
 ## Running
 
