@@ -177,7 +177,7 @@ discouraged.
 
 ## Assumptions that may not hold
 
-### D1. The 1/s update bound rests on a README, not a measurement
+### D1. ~~The 1/s update bound rests on a README, not a measurement~~ — RESOLVED 2026-08-31
 
 D21 downgraded R1 from critical to low on the basis that `ha-airspace` "throttles publishes to a
 default 1/s." That came from reading the project's README.
@@ -186,8 +186,17 @@ The throttle is described as per-hex *and* summary. Whether the *aggregate* sens
 updates at 1 Hz, or at 1 Hz × number of aircraft as MQTT messages fan in, is not established.
 If it is the latter, R1 returns and A2 becomes considerably worse.
 
-**Required:** S1 must run before implementation begins, not after. It is the only spike left and
-it is now load-bearing for two findings.
+**Resolved by running S1.** The README was accurate: no entity exceeds ~0.92/s. But the throttle
+is *per entity*, and the bound set yields **~5.6 msg/s and 7.2 KB/s** in aggregate — dominated by
+two flag sensors at ~4 KB each, re-sent ~0.9 times a second. R15 is confirmed exactly.
+
+Two caveats that matter more than the resolution:
+
+- That 7.2 KB/s is **HA → daemon**, over a same-host virtual bridge (D13). It is fine.
+  **A2's concern is daemon → Pi over SSH, which S1 does not measure and which remains open.**
+- S1 destroyed three design assumptions in passing — 94 aircraft tracked rather than 9, flag
+  lists capped at 10, and no full-aircraft-list entity at all. See D41 and
+  `S1-event-payload/RESULTS.md`.
 
 ### D2. ~~The bubbletea v1 / v2 split is an unexamined dependency trap~~ — RESOLVED 2026-08-31
 
