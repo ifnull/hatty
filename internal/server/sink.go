@@ -27,8 +27,21 @@ type Frame any
 //
 // The resolution is that SLOWNESS IS NOT DEATH. A slow consumer is a condition
 // this design already handles -- frames are SUPPOSED to be dropped, which is
-// what the depth-1 replacing slot is for. Only confirmed channel death tears a
-// session down.
+// what the depth-1 replacing slot is for.
+//
+// VERIFIED ON HARDWARE (docs/spikes/E1-backpressure/RESULTS.md). Against a Pi 3B
+// over the LAN, a SIGSTOPped client blocked the write for 7+ seconds with NO
+// error while Push stayed at 302 microseconds, and the session recovered
+// cleanly on resume -- a session r2's reaper would have killed nine times over.
+//
+// That probe also CORRECTED this comment. A killed client did not produce a
+// write error either: wish cancels the SSH session context, and that -- not the
+// write -- is what ends the session. So teardown happens on CONTEXT
+// CANCELLATION, with the write-error branch as a backstop that may never fire
+// in practice. The load-bearing assumption is therefore that wish cancels the
+// session context on connection death; it did, across 11 lifecycles.
+//
+// Render latency, of any magnitude, is never a teardown trigger.
 type Sink struct {
 	latest atomic.Pointer[Frame]
 	wake   chan struct{}
@@ -87,9 +100,10 @@ func (s *Sink) loop() {
 				continue
 			}
 			if err := s.send(s.ctx, *p); err != nil {
-				// Confirmed channel death: the session is over. This is the
-				// ONLY teardown trigger. Render latency, of any magnitude,
-				// is not one.
+				// A write error means the channel is gone. In practice the
+				// context is usually cancelled first (see the package comment
+				// and the E1 probe results), so this is a backstop rather than
+				// the primary path -- but an untested backstop is not one.
 				s.cancel()
 				return
 			}

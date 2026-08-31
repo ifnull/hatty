@@ -135,6 +135,24 @@ GOOS=linux GOARCH=arm64 go build ./...   # the deployment target
   unauthorised key is rejected, and a reload that would empty the list is
   refused rather than silently opening or closing the door.
 
+## E1 verified on hardware
+
+The sink's unit tests inject a `send` function, so they prove the logic. They
+say nothing about whether wish's real write path behaves as E1 assumes. A probe
+(`cmd/e1probe`) cross-compiled to arm64 and run on `control-panel-mini` answers
+that — see [`docs/spikes/E1-backpressure/RESULTS.md`](docs/spikes/E1-backpressure/RESULTS.md).
+
+- A `SIGSTOP`ped client **blocked the write for 7+ seconds with no error**,
+  while `Push` stayed at **302 µs** — the store is genuinely isolated.
+- The session **recovered cleanly on resume**. r2's 750 ms reaper would have
+  killed it nine times over, and killed a session that fixes itself.
+- **One documented mechanism was wrong.** A killed client produced no write
+  error either; wish cancels the SSH session context, and *that* ends the
+  session. Teardown is by context cancellation, with the write-error branch a
+  backstop that may never fire. The load-bearing assumption is now that wish
+  cancels on death — it did, across 11 lifecycles.
+- 11 connect/kill cycles: 10 MB RSS, 7 threads, no accumulation.
+
 ## Findings from implementation
 
 Rendering a real frame surfaced things five rounds of ASCII mockups did not.
