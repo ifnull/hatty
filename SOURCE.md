@@ -21,6 +21,7 @@ Assistant.
 | `internal/layout` | **done** — solver, column drop | B1, D36, D37 |
 | `internal/widget` | **done** — table, alert strip, detail, bar, status | D33, D34, D36, D41, E2 |
 | `internal/server` | **partial** — sink, authorized_keys | A1, C1, E1, E9 |
+| `internal/model` | **done** — resolver, format, build | A4, D4, D34, D42, E7 |
 | `internal/server` — wish wiring | next | D7 |
 | `cmd/hatty` | | |
 
@@ -148,6 +149,15 @@ GOOS=linux GOARCH=arm64 go build ./...   # the deployment target
   concurrent producers and eight concurrent readers.
 - The real capture replays through the whole `ha` → `state` path leaving every
   entity's attributes intact.
+
+- Every non-usable condition renders as an **indicator, never as content** —
+  the WeatherFlow lightning case, where a rendered `0.0` reads as a strike
+  directly overhead.
+- A **guard suppresses the value, not merely its style** (D42), and the same
+  binding renders normally once the guard is satisfied.
+- Staleness applies **only** where a cadence is declared (A4).
+- The altitude ramp is asserted **never to use a reserved state hue** — red,
+  amber and green mean state and nothing else (D34).
 
 ## E1 verified on hardware
 

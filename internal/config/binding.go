@@ -171,3 +171,14 @@ func (b Binding) Resolve(root any) (any, error) {
 	}
 	return cur, nil
 }
+
+// ParseGuardBinding extracts the binding from a `<binding> is available` guard.
+// Exported so the model layer can resolve the referent without duplicating the
+// grammar.
+func ParseGuardBinding(s string) (Binding, error) {
+	f := strings.Fields(strings.TrimSpace(s))
+	if len(f) != 3 || f[1] != "is" || f[2] != "available" {
+		return Binding{}, fmt.Errorf("valid_when must read `<binding> is available`, got %q", s)
+	}
+	return ParseBinding(f[0])
+}

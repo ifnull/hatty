@@ -207,3 +207,9 @@ func (s *Store) Run(ctx context.Context, tick time.Duration) {
 		}
 	}
 }
+
+// NewSnapshotForTest builds a snapshot directly. Test-only: production
+// snapshots are published by the store's single writer.
+func NewSnapshotForTest(m map[string]*Entity, at time.Time) *Snapshot {
+	return &Snapshot{At: at, m: m}
+}
