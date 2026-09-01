@@ -259,6 +259,11 @@ func panelBindings(p Panel) []string {
 			out = append(out, f.Bind)
 		}
 	}
+	for _, sp := range p.Series {
+		if sp.Bind != "" {
+			out = append(out, sp.Bind)
+		}
+	}
 	for _, d := range p.Decisions {
 		if c, err := ParseCondition(d.When); err == nil {
 			out = append(out, c.Bind.String())

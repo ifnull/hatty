@@ -17,6 +17,7 @@ import (
 
 	"github.com/ifnull/hatty/internal/config"
 	"github.com/ifnull/hatty/internal/ha"
+	"github.com/ifnull/hatty/internal/model"
 	"github.com/ifnull/hatty/internal/server"
 	"github.com/ifnull/hatty/internal/state"
 	"github.com/ifnull/hatty/internal/widget"
@@ -33,6 +34,8 @@ func main() {
 		hostKey       = flag.String("host-key", "hatty_host_key", "SSH host key")
 		tickMS        = flag.Int("tick", 250, "render coalescing interval, ms")
 		weatherEntity = flag.String("weather", "weather.forecast_home", "weather entity for forecasts")
+		chartWindow   = flag.Duration("chart-window", time.Hour, "how much history charts show")
+		chartPoints   = flag.Int("chart-points", 240, "samples retained per chart series")
 		debug         = flag.Bool("debug", false, "verbose logging")
 	)
 	flag.Parse()
@@ -86,6 +89,15 @@ func main() {
 	}()
 
 	store := state.NewStore()
+
+	// Series the dashboard charts. Capacity is allocated once and never grows
+	// (N4/R8); the window is what the chart displays, sampled at the publish
+	// rate rather than per event.
+	for key, extract := range model.TrackedSeries(dash, *chartWindow, *chartPoints) {
+		store.Track(key, *chartWindow/time.Duration(*chartPoints), *chartPoints, extract)
+		log.Debug("tracking series", "bind", key)
+	}
+
 	go store.Run(ctx, time.Duration(*tickMS)*time.Millisecond)
 
 	subs := dash.Subscriptions() // includes guard referents (finding E6)

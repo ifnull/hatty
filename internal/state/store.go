@@ -23,8 +23,9 @@ type Entity struct {
 
 // Snapshot is an immutable view of the store, valid for one frame.
 type Snapshot struct {
-	At time.Time
-	m  map[string]*Entity
+	At     time.Time
+	m      map[string]*Entity
+	series map[string][]float64
 }
 
 // Get returns an entity, or nil.
@@ -76,6 +77,9 @@ type Store struct {
 	stopped chan struct{}
 
 	clock func() time.Time
+
+	trackMu sync.Mutex
+	tracked map[string]*tracker
 }
 
 type subReq struct {
@@ -199,7 +203,7 @@ func (s *Store) Run(ctx context.Context, tick time.Duration) {
 				Seen: now,
 			}
 		}
-		snap := &Snapshot{At: now, m: m}
+		snap := &Snapshot{At: now, m: m, series: s.accumulate(m, now)}
 		s.mu.Lock()
 		s.snap = snap
 		s.mu.Unlock()
@@ -243,4 +247,68 @@ func (s *Store) Run(ctx context.Context, tick time.Duration) {
 // snapshots are published by the store's single writer.
 func NewSnapshotForTest(m map[string]*Entity, at time.Time) *Snapshot {
 	return &Snapshot{At: at, m: m}
+}
+
+// NewSnapshotWithSeriesForTest builds a snapshot carrying series data.
+func NewSnapshotWithSeriesForTest(m map[string]*Entity, series map[string][]float64, at time.Time) *Snapshot {
+	return &Snapshot{At: at, m: m, series: series}
+}
+
+// Track registers a numeric series the store should accumulate.
+//
+// The extractor is supplied by the caller rather than the store resolving
+// bindings itself, because `state` must not import `config` -- the dependency
+// runs the other way (r3 §1). It keeps the store ignorant of the binding
+// grammar and keeps this package testable without any of it.
+//
+// Capacity is allocated once and never grows (N4, R8): a 24-hour window at
+// 5-minute buckets is 288 points, a 60-minute live chart at 1 Hz is 3600.
+func (s *Store) Track(key string, bucket time.Duration, n int, extract func(*Entity) (float64, bool)) {
+	s.trackMu.Lock()
+	defer s.trackMu.Unlock()
+	if s.tracked == nil {
+		s.tracked = map[string]*tracker{}
+	}
+	s.tracked[key] = &tracker{ring: NewRing(bucket, n), extract: extract}
+}
+
+type tracker struct {
+	ring    *Ring
+	extract func(*Entity) (float64, bool)
+}
+
+// accumulate folds the current values into the tracked series. Called by the
+// writer on every publish, so a series advances at the publish rate rather
+// than per event -- the same coalescing that protects the render path.
+func (s *Store) accumulate(m map[string]*Entity, now time.Time) map[string][]float64 {
+	s.trackMu.Lock()
+	defer s.trackMu.Unlock()
+	if len(s.tracked) == 0 {
+		return nil
+	}
+	out := make(map[string][]float64, len(s.tracked))
+	for key, t := range s.tracked {
+		for _, e := range m {
+			if v, ok := t.extract(e); ok {
+				t.ring.Put(Sample{T: now, V: v, Src: Live})
+				break
+			}
+		}
+		pts := t.ring.Series()
+		vals := make([]float64, len(pts))
+		for i, p := range pts {
+			vals[i] = p.V
+		}
+		out[key] = vals
+	}
+	return out
+}
+
+// Series returns the accumulated points for a tracked key. The slice belongs to
+// the snapshot and is never mutated afterwards (D3).
+func (s *Snapshot) Series(key string) []float64 {
+	if s == nil {
+		return nil
+	}
+	return s.series[key]
 }

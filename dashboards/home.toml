@@ -87,6 +87,31 @@ follows = "outside"
   bind   = "sensor.st_00128663_battery"
   format = "%.0f"
 
+# D16: min/mean/max on one axis, in one hue family so they read as a single
+# measurement. The trend is what a table cannot say -- wind rises and falls on a
+# rhythm, and that is the thing worth seeing at a glance.
+#
+# Currently live-accumulated. Statistics backfill via
+# recorder/statistics_during_period is the remaining piece; until then the
+# chart fills from empty after a restart rather than showing 24h immediately.
+[[panel]]
+type    = "chart"
+follows = "WIND · gust / average / lull"
+unit    = "mph"
+
+  [[panel.series]]
+  label = "gust"
+  bind  = "sensor.st_00128663_wind_gust"
+  color = "alt3"
+  [[panel.series]]
+  label = "avg"
+  bind  = "sensor.st_00128663_wind_speed_average"
+  color = "alt2"
+  [[panel.series]]
+  label = "lull"
+  bind  = "sensor.st_00128663_wind_lull"
+  color = "alt1"
+
 [[panel]]
 type    = "detail"
 follows = "inside"

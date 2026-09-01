@@ -64,6 +64,11 @@ type Panel struct {
 	Hold    duration          `toml:"hold"` // alert stickiness (finding E2)
 	Vars    map[string]string `toml:"vars"` // declared template bindings (finding D4)
 
+	// Chart panels overlay several series on one axis (D16).
+	Series []SeriesSpec `toml:"series"`
+	Unit   string       `toml:"unit"`
+	Window duration     `toml:"window"`
+
 	Sort      *Sort      `toml:"sort"`
 	Columns   []Column   `toml:"column"`
 	Fields    []Field    `toml:"field"`
@@ -106,6 +111,13 @@ type Column struct {
 type Ramp struct {
 	Thresholds []float64 `toml:"thresholds"`
 	Palette    []string  `toml:"palette"`
+}
+
+// SeriesSpec is one line on a chart.
+type SeriesSpec struct {
+	Label string `toml:"label"`
+	Bind  string `toml:"bind"`
+	Color string `toml:"color"` // palette name; sequential family, not state hues
 }
 
 // Field is one key/value line in a detail panel.

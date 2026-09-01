@@ -192,6 +192,22 @@ that — see [`docs/spikes/E1-backpressure/RESULTS.md`](docs/spikes/E1-backpress
 
 ## Findings from implementation
 
+### F4 — a live series' bucket must match its source's update rate
+
+The wind chart was configured with a 3-minute window over 120 points, giving a
+1.5-second bucket — while the Tempest publishes roughly once a minute. Around
+118 of 120 buckets are therefore always empty, and the chart interpolates three
+real samples across ninety-eight columns, drawing long flats and sharp steps.
+
+This is **finding E4 in a new place**. r3 requires a statistics bucket to be
+*derived* from the backfill period rather than configured, precisely so a
+mismatch cannot silently render a chart as a comb. Live series need the same
+rule and do not yet have it: `--chart-points` is chosen independently of how
+often the source actually updates.
+
+The measured rates are already on record (`S1-event-payload/RESULTS.md`), so the
+bucket can be derived rather than guessed. Recorded, not fixed.
+
 Rendering a real frame surfaced things five rounds of ASCII mockups did not.
 
 ### F0 — FIXED: the table binds one collection, not the union

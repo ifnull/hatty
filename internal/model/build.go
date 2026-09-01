@@ -67,6 +67,15 @@ func buildPanel(p config.Panel, r Resolver, th *widget.Theme) (widget.Widget, la
 		spec.MaxRows = spec.NatRows // F1: bounded by the record, like the table
 		return d, spec
 
+	case "chart":
+		c := buildChart(p, r, th)
+		spec.MinRows = 3
+		spec.NatRows = 8
+		spec.Rule = true
+		spec.Title = p.Follows
+		spec.DropRank = 10 // D36: the trend is the first thing to go
+		return c, spec
+
 	case "decisions":
 		d, n := buildDecisions(p, r, th)
 		spec.MinRows = 1
@@ -336,6 +345,56 @@ func boolStr(b bool) string {
 // D43/D44: the MVP set is gusts now (Tempest), freezing tonight (Met.no daily
 // templow, already in HA), and windy later. "Gusty later" is a fast-follow: no
 // configured provider exposes wind_gust_speed in a forecast.
+// buildChart assembles the overlaid series.
+//
+// D16: min, mean and max share one axis in ONE hue family, so they read as a
+// single measurement rather than three unrelated things. The series come from
+// the store's tracked rings, keyed by binding, so the widget stays pure over
+// its view-model and never touches state.
+func buildChart(p config.Panel, r Resolver, th *widget.Theme) *widget.RunChart {
+	c := &widget.RunChart{Unit: p.Unit, Legend: true}
+	for _, sp := range p.Series {
+		pts := r.Snap.Series(sp.Bind)
+		if len(pts) == 0 {
+			continue
+		}
+		c.Series = append(c.Series, widget.Series{
+			Name:   sp.Label,
+			Points: pts,
+			Style:  NamedStyle(sp.Color, th, th.Value),
+		})
+	}
+	return c
+}
+
+// TrackedSeries returns the series a dashboard needs the store to accumulate,
+// with the extractor for each. main wires these into the store; keeping the
+// resolution here means `state` never learns the binding grammar.
+func TrackedSeries(d *config.Dashboard, window time.Duration, points int) map[string]func(*state.Entity) (float64, bool) {
+	out := map[string]func(*state.Entity) (float64, bool){}
+	for _, p := range d.Panels {
+		for _, sp := range p.Series {
+			b, err := config.ParseBinding(sp.Bind)
+			if err != nil {
+				continue
+			}
+			bind := b
+			out[sp.Bind] = func(e *state.Entity) (float64, bool) {
+				if e.ID != bind.Entity {
+					return 0, false
+				}
+				v := Resolver{Snap: state.NewSnapshotForTest(map[string]*state.Entity{e.ID: e}, time.Time{})}.
+					Resolve(bind, 0)
+				if !v.Kind.Usable() {
+					return 0, false
+				}
+				return v.Num, true
+			}
+		}
+	}
+	return out
+}
+
 func buildDecisions(p config.Panel, r Resolver, th *widget.Theme) (*widget.Decisions, int) {
 	d := &widget.Decisions{Nominal: p.Nominal}
 	for _, dec := range p.Decisions {
