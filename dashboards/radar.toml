@@ -1,0 +1,112 @@
+# The airspace screen. Entities and shapes verified against the live instance
+# (docs/planning/airspace-entity-model.md, spike S1).
+name  = "radar"
+title = "hatty · radar"
+
+[display]
+resolution = "800x480"
+font       = "DejaVu Sans Mono:size=8"
+cols       = 100          # measured target (D40); 100x32 on the panel
+rows       = 32
+min_cols   = 44           # refusal floor (D36)
+min_rows   = 12
+glyphs     = "full"       # Braille confirmed on the panel by spike S2
+colors     = 256
+
+# Reserves its line at every size (D34/D36). An alert that disappears when the
+# window shrinks is worse than never having had one.
+[[panel]]
+type    = "alert_strip"
+reserve = true
+source  = "binary_sensor.airspace_alert_military_close"
+nominal = "{flagged} flagged · {tracked} tracked"
+hold    = "90s"           # E2: alerts are events; hold so a transient is seen
+
+  [panel.vars]            # D4: declared bindings, not widget magic
+  tracked = "sensor.airspace_aircraft_count"
+  flagged = "sensor.airspace_flag_military"
+
+# D41: the flag collections are the ONLY aircraft lists, and they are capped at
+# ten. aircraft_count is 94. The table is a subset and says so.
+[[panel]]
+type    = "table"
+bind    = "sensor.airspace_flag_military:aircraft[]"
+elastic = 2
+
+  [panel.sort]
+  key = "distance_nm"
+  dir = "asc"
+  # E7: exact ordering. Hysteresis trades sort correctness for stability and
+  # the bandwidth concern driving it is still unmeasured.
+  hysteresis = 0.0
+
+  [[panel.column]]
+  header = "FLIGHT"
+  path   = "flight"
+  width  = 9
+  [[panel.column]]
+  header = "DIST"
+  path   = "distance_nm"
+  width  = 6
+  align  = "right"
+  format = "%.1f"
+  [[panel.column]]
+  header = "ALT"
+  path   = "alt_baro_ft"
+  width  = 8
+  align  = "right"
+  format = "%,d"
+    [panel.column.ramp]   # sequential, never a traffic light (D34)
+    thresholds = [10000, 20000, 30000]
+    palette    = ["alt0", "alt1", "alt2", "alt3"]
+  [[panel.column]]
+  header = "BRG"
+  path   = "bearing_deg"
+  width  = 4
+  align  = "right"
+  format = "%d"
+  [[panel.column]]
+  header   = "TYPE"
+  path     = "aircraft_type"
+  width    = 6
+  min_cols = 56
+  [[panel.column]]
+  header   = "SQK"
+  path     = "squawk"
+  width    = 5
+  min_cols = 80
+
+[[panel]]
+type    = "detail"
+follows = "nearest"
+elastic = 3
+
+  [[panel.field]]
+  label = "Distance"
+  bind  = "sensor.airspace_nearest_aircraft"
+  format = "%.1f"
+  [[panel.field]]
+  label = "Bearing"
+  bind  = "sensor.airspace_nearest_aircraft:bearing_to.home"
+  format = "%.0f"
+  [[panel.field]]
+  label = "Altitude"
+  bind  = "sensor.airspace_nearest_aircraft:alt_baro_ft"
+  format = "%,d"
+  [[panel.field]]
+  label = "Speed"
+  bind  = "sensor.airspace_nearest_aircraft:ground_speed_kt"
+  format = "%.0f"
+  [[panel.field]]
+  label = "Squawk"
+  bind  = "sensor.airspace_nearest_aircraft:squawk"
+  [[panel.field]]
+  label = "Type"
+  bind  = "sensor.airspace_nearest_aircraft:db_metadata.model"
+  [[panel.field]]
+  label = "Operator"
+  bind  = "sensor.airspace_nearest_aircraft:db_metadata.ownop"
+  [[panel.field]]
+  label = "Closest approach"
+  bind  = "sensor.airspace_nearest_aircraft:predicted_closest_approach_nm"
+  format = "%.1f"

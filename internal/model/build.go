@@ -182,18 +182,46 @@ func buildTable(p config.Panel, r Resolver, th *widget.Theme) (*widget.Table, in
 // distance". Revision 2 presented that as free. It is opt-in until the SSH-link
 // bandwidth that motivates it has actually been measured.
 func sortRecords(recs []map[string]any, s *config.Sort) {
-	key := func(m map[string]any) float64 {
-		f, _ := m[s.Key].(float64)
-		if s.Hysteresis > 0 {
-			return float64(int(f/s.Hysteresis)) * s.Hysteresis
+	// A missing sort key is NOT zero.
+	//
+	// Verified against live data: most military contacts carry only
+	// aircraft_type and hex -- Mode-S returns identified from the database but
+	// not yet broadcasting position -- so distance_nm, bearing_deg, altitude
+	// and flight are all null. Coercing nil to 0.0 (the obvious
+	// `v, _ := m[key].(float64)`) sorts every positionless contact to the TOP,
+	// presenting aircraft of unknown location as the nearest ones.
+	//
+	// That is the same class of error as rendering "0.0 mi" for absent
+	// lightning: a plausible number standing in for no information.
+	key := func(m map[string]any) (float64, bool) {
+		v, ok := m[s.Key]
+		if !ok || v == nil {
+			return 0, false
 		}
-		return f
+		f, ok := v.(float64)
+		if !ok {
+			return 0, false
+		}
+		if s.Hysteresis > 0 {
+			return float64(int(f/s.Hysteresis)) * s.Hysteresis, true
+		}
+		return f, true
 	}
 	sort.SliceStable(recs, func(i, j int) bool {
-		a, b := key(recs[i]), key(recs[j])
-		if a == b {
-			// A stable tiebreak on an unchanging field, so equal keys do not
+		a, aOK := key(recs[i])
+		b, bOK := key(recs[j])
+		switch {
+		case !aOK && !bOK:
+			// Stable tiebreak on an unchanging field, so equal keys do not
 			// shuffle between frames.
+			ai, _ := recs[i]["hex"].(string)
+			bj, _ := recs[j]["hex"].(string)
+			return ai < bj
+		case !aOK:
+			return false // unknown position sorts LAST, never first
+		case !bOK:
+			return true
+		case a == b:
 			ai, _ := recs[i]["hex"].(string)
 			bj, _ := recs[j]["hex"].(string)
 			return ai < bj

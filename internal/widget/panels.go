@@ -78,7 +78,10 @@ func (d *Detail) Render(w, h int, th *Theme) []string {
 	if w < 62 {
 		perCol = 1
 	}
-	labelW, colW := 16, w/perCol
+	// One cell wider than the longest label expected, so a label that exactly
+	// fills its field cannot run into its value -- "Closest approach" is 16
+	// characters and did exactly that.
+	labelW, colW := 18, w/perCol
 	for i := 0; i < len(d.Fields) && len(out) < h; i += perCol {
 		r := render.NewRow(w)
 		for c := 0; c < perCol; c++ {

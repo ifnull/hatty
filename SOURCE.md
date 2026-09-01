@@ -22,8 +22,8 @@ Assistant.
 | `internal/widget` | **done** — table, alert strip, detail, bar, status | D33, D34, D36, D41, E2 |
 | `internal/server` | **partial** — sink, authorized_keys | A1, C1, E1, E9 |
 | `internal/model` | **done** — resolver, format, build | A4, D4, D34, D42, E7 |
-| `internal/server` — wish wiring | next | D7 |
-| `cmd/hatty` | | |
+| `internal/server` — wish wiring | **done** | D7, C1, E9 |
+| `cmd/hatty` | **done** — daemon runs end to end | D13, D15 |
 
 ## What is already enforced by a test
 
@@ -194,6 +194,16 @@ that — see [`docs/spikes/E1-backpressure/RESULTS.md`](docs/spikes/E1-backpress
 
 Rendering a real frame surfaced things five rounds of ASCII mockups did not.
 
+### F0 — CONFIRMED LIVE: the table binds one collection, not the union
+
+D41 says the table shows *the union of the flag collections*. The implementation
+binds **one** — `sensor.airspace_flag_military` — because the grammar addresses a
+single collection. Live, that is two or three contacts against 71 tracked, which
+is why the screen looks empty.
+
+The gap is in the config grammar, not the widget. Resolving it needs a binding
+that unions several collections and deduplicates by `hex`.
+
 ### F1 — the elastic panel can absorb rows it cannot use
 
 At 100×32 the composed `radar` frame leaves **sixteen blank rows**. The detail
@@ -214,8 +224,13 @@ Two ways out, and the choice is a design decision rather than a bug fix:
 - or let a panel declare a **maximum** height, so leftover falls through to the
   next elastic rank instead of pooling in a panel that cannot use it.
 
-Recorded rather than fixed: it changes the layout contract, and the contract
-has already been through three revisions and two adversarial rounds.
+**Confirmed against the live daemon**, not just mockups: 22 blank rows at
+100×32, because the detail pane's eight fields make four rows and the table has
+two. Neither panel can fill the screen — and F0 is why the table has so little
+to show.
+
+Recorded rather than fixed: it changes the layout contract, and the contract has
+already been through three revisions and two adversarial rounds.
 
 ### F2 — panels have no chrome
 

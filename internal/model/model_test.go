@@ -177,3 +177,48 @@ func parseNum(s string) (float64, error) {
 	f, err = strconvParseFloat(s)
 	return f, err
 }
+
+// Live data: most military contacts carry only aircraft_type and hex, with
+// distance, bearing, altitude and callsign all null. Coercing nil to 0.0 sorts
+// them to the TOP, presenting aircraft of unknown position as the nearest --
+// the same error as rendering "0.0 mi" for absent lightning.
+func TestRecordsWithNoSortKeySortLastNotFirst(t *testing.T) {
+	recs := []map[string]any{
+		{"hex": "aaa111", "aircraft_type": "HAWK"},                      // no position
+		{"hex": "bbb222", "distance_nm": 76.6, "aircraft_type": "TEX2"}, // far
+		{"hex": "ccc333", "aircraft_type": "TEX2"},                      // no position
+		{"hex": "ddd444", "distance_nm": 9.1, "aircraft_type": "B738"},  // near
+	}
+	sortRecords(recs, &config.Sort{Key: "distance_nm", Dir: "asc"})
+
+	if got := recs[0]["hex"]; got != "ddd444" {
+		t.Errorf("first row is %v, want the genuinely nearest contact", got)
+	}
+	if got := recs[1]["hex"]; got != "bbb222" {
+		t.Errorf("second row is %v, want the far contact", got)
+	}
+	for _, i := range []int{2, 3} {
+		if _, ok := recs[i]["distance_nm"]; ok {
+			t.Errorf("row %d has a position but sorted below one that does not", i)
+		}
+	}
+	// Positionless contacts keep a stable order between frames.
+	if recs[2]["hex"] != "aaa111" || recs[3]["hex"] != "ccc333" {
+		t.Errorf("positionless rows are not stably ordered: %v, %v", recs[2]["hex"], recs[3]["hex"])
+	}
+}
+
+// A record whose field is nil must render the indicator, never a zero.
+func TestNilRecordFieldRendersTheIndicator(t *testing.T) {
+	th := widget.Default()
+	rec := map[string]any{"flight": nil, "distance_nm": nil, "aircraft_type": "HAWK"}
+	for _, path := range []string{"flight", "distance_nm", "missing_entirely"} {
+		got := recordCell(rec, config.Column{Path: path, Format: "%.1f"}, th)
+		if got.Text != IndicatorUnavailable {
+			t.Errorf("%s rendered %q, want %q", path, got.Text, IndicatorUnavailable)
+		}
+	}
+	if got := recordCell(rec, config.Column{Path: "aircraft_type"}, th); got.Text != "HAWK" {
+		t.Errorf("populated field rendered %q", got.Text)
+	}
+}
