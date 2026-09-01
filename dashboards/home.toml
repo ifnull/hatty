@@ -91,25 +91,29 @@ follows = "outside"
 # measurement. The trend is what a table cannot say -- wind rises and falls on a
 # rhythm, and that is the thing worth seeing at a glance.
 #
-# Currently live-accumulated. Statistics backfill via
-# recorder/statistics_during_period is the remaining piece; until then the
-# chart fills from empty after a restart rather than showing 24h immediately.
+# Backed by recorder statistics, so the chart shows its whole window
+# IMMEDIATELY on start rather than filling from empty -- the difference between
+# a 24-hour chart and one that will be useful tomorrow. The bucket is derived
+# from the statistics period, never configured beside it (E4/F4).
 [[panel]]
 type    = "chart"
-follows = "WIND · gust / average / lull"
+follows = "WIND · 24 H · min / mean / max"
 unit    = "mph"
 
   [[panel.series]]
-  label = "gust"
-  bind  = "sensor.st_00128663_wind_gust"
+  label = "max"
+  bind  = "sensor.st_00128663_wind_speed"
+  stat  = "max"
   color = "alt3"
   [[panel.series]]
-  label = "avg"
-  bind  = "sensor.st_00128663_wind_speed_average"
+  label = "mean"
+  bind  = "sensor.st_00128663_wind_speed"
+  stat  = "mean"
   color = "alt2"
   [[panel.series]]
-  label = "lull"
-  bind  = "sensor.st_00128663_wind_lull"
+  label = "min"
+  bind  = "sensor.st_00128663_wind_speed"
+  stat  = "min"
   color = "alt1"
 
 [[panel]]

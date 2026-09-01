@@ -95,12 +95,26 @@ func Validate(d *Dashboard) Errors {
 				add("%s field %q: %v", where, f.Label, err)
 			}
 		}
+		for _, sp := range p.Series {
+			switch sp.Stat {
+			case "", "min", "mean", "max":
+			default:
+				add("%s series %q: stat = %q, want min, mean or max", where, sp.Label, sp.Stat)
+			}
+		}
 		for _, dec := range p.Decisions {
 			if _, err := ParseCondition(dec.When); err != nil {
 				add("%s decision %q: %v", where, dec.Say, err)
 			}
 			if strings.TrimSpace(dec.Say) == "" {
 				add("%s: a decision with no `say` states no action", where)
+			}
+		}
+		for _, sp := range p.Series {
+			switch sp.Stat {
+			case "", "min", "mean", "max":
+			default:
+				add("%s series %q: stat = %q, want min, mean or max", where, sp.Label, sp.Stat)
 			}
 		}
 		for _, dec := range p.Decisions {

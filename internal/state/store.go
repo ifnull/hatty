@@ -288,6 +288,16 @@ func (s *Store) accumulate(m map[string]*Entity, now time.Time) map[string][]flo
 	}
 	out := make(map[string][]float64, len(s.tracked))
 	for key, t := range s.tracked {
+		if t.extract == nil {
+			// Statistic-backed: filled by backfill only.
+			pts := t.ring.Series()
+			vals := make([]float64, len(pts))
+			for i, p := range pts {
+				vals[i] = p.V
+			}
+			out[key] = vals
+			continue
+		}
 		for _, e := range m {
 			if v, ok := t.extract(e); ok {
 				t.ring.Put(Sample{T: now, V: v, Src: Live})
@@ -302,6 +312,26 @@ func (s *Store) accumulate(m map[string]*Entity, now time.Time) map[string][]flo
 		out[key] = vals
 	}
 	return out
+}
+
+// PutStatistics injects backfilled points into a tracked series.
+//
+// Provenance does the work (finding E3): statistics beat live, and a newer
+// revision beats an older one -- so a refetch after a reconnect LANDS on
+// buckets that are already full, instead of being discarded as a duplicate.
+func (s *Store) PutStatistics(key string, rev uint64, pts []struct {
+	T time.Time
+	V float64
+}) {
+	s.trackMu.Lock()
+	defer s.trackMu.Unlock()
+	t, ok := s.tracked[key]
+	if !ok {
+		return
+	}
+	for _, p := range pts {
+		t.ring.Put(Sample{T: p.T, V: p.V, Src: Stats, Rev: rev})
+	}
 }
 
 // Series returns the accumulated points for a tracked key. The slice belongs to

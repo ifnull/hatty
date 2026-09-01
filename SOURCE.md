@@ -192,7 +192,7 @@ that — see [`docs/spikes/E1-backpressure/RESULTS.md`](docs/spikes/E1-backpress
 
 ## Findings from implementation
 
-### F4 — a live series' bucket must match its source's update rate
+### F4 — PARTLY FIXED: a series' bucket must match its source
 
 The wind chart was configured with a 3-minute window over 120 points, giving a
 1.5-second bucket — while the Tempest publishes roughly once a minute. Around
@@ -205,8 +205,15 @@ mismatch cannot silently render a chart as a comb. Live series need the same
 rule and do not yet have it: `--chart-points` is chosen independently of how
 often the source actually updates.
 
-The measured rates are already on record (`S1-event-payload/RESULTS.md`), so the
-bucket can be derived rather than guessed. Recorded, not fixed.
+**Fixed for statistic-backed series**, which is the case that matters: the
+bucket is now *derived* from the statistics period, so buckets line up with the
+data that fills them. The wind chart takes 5-minute buckets because it requests
+5-minute statistics, and 861 points land across 287 buckets per series.
+
+**Still open for live-accumulated series.** `--chart-points` is chosen
+independently of how often a source publishes. The measured rates are on record
+(`S1-event-payload/RESULTS.md`), so it can be derived rather than guessed — it
+just is not yet.
 
 Rendering a real frame surfaced things five rounds of ASCII mockups did not.
 

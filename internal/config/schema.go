@@ -118,6 +118,23 @@ type SeriesSpec struct {
 	Label string `toml:"label"`
 	Bind  string `toml:"bind"`
 	Color string `toml:"color"` // palette name; sequential family, not state hues
+
+	// Stat draws this series from recorder statistics rather than from live
+	// accumulation: "min", "mean" or "max" (D16).
+	//
+	// A statistic-backed series shows its full window IMMEDIATELY on start,
+	// where a live one fills from empty. That is the difference between a
+	// 24-hour chart and a chart that will be useful tomorrow.
+	Stat string `toml:"stat"`
+}
+
+// SeriesKey identifies a series in the store. A statistic-backed series is
+// keyed by aggregate, since one entity yields three distinct lines.
+func (s SeriesSpec) SeriesKey() string {
+	if s.Stat != "" {
+		return s.Bind + "|" + s.Stat
+	}
+	return s.Bind
 }
 
 // Field is one key/value line in a detail panel.

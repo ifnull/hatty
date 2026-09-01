@@ -35,7 +35,8 @@ func main() {
 		tickMS        = flag.Int("tick", 250, "render coalescing interval, ms")
 		weatherEntity = flag.String("weather", "weather.forecast_home", "weather entity for forecasts")
 		chartWindow   = flag.Duration("chart-window", time.Hour, "how much history charts show")
-		chartPoints   = flag.Int("chart-points", 240, "samples retained per chart series")
+		chartPoints   = flag.Int("chart-points", 240, "samples retained per live chart series")
+		statsPeriod   = flag.String("stats-period", "5minute", "statistics bucket: 5minute|hour|day")
 		debug         = flag.Bool("debug", false, "verbose logging")
 	)
 	flag.Parse()
@@ -91,11 +92,52 @@ func main() {
 	store := state.NewStore()
 
 	// Series the dashboard charts. Capacity is allocated once and never grows
-	// (N4/R8); the window is what the chart displays, sampled at the publish
-	// rate rather than per event.
+	// (N4/R8).
+	//
+	// FINDING E4/F4: the bucket is DERIVED from the source, never configured
+	// beside it. A statistic-backed series takes the statistics period, so the
+	// buckets line up with the data that fills them; a bucket smaller than the
+	// period leaves slots empty and renders the chart as a comb, larger and
+	// samples collide and are discarded.
+	statIDs, statWant := model.StatSeries(dash)
 	for key, extract := range model.TrackedSeries(dash, *chartWindow, *chartPoints) {
-		store.Track(key, *chartWindow/time.Duration(*chartPoints), *chartPoints, extract)
-		log.Debug("tracking series", "bind", key)
+		bucket, n := *chartWindow/time.Duration(*chartPoints), *chartPoints
+		if _, isStat := statWant[key]; isStat {
+			bucket = statsPeriodDuration(*statsPeriod)
+			n = int(*chartWindow/bucket) + 1
+		}
+		store.Track(key, bucket, n, extract)
+		log.Debug("tracking series", "key", key, "bucket", bucket, "points", n)
+	}
+
+	// Backfill turns a chart that fills from empty into one that shows its
+	// whole window immediately (D16).
+	var statsReq *ha.StatsRequest
+	if len(statIDs) > 0 {
+		statsReq = &ha.StatsRequest{
+			IDs: statIDs, Window: *chartWindow, Period: *statsPeriod,
+			On: func(rev uint64, byID map[string][]ha.StatPoint) {
+				total := 0
+				for key, wantSpec := range statWant {
+					pts := byID[wantSpec.Entity]
+					vals := make([]struct {
+						T time.Time
+						V float64
+					}, 0, len(pts))
+					for _, p := range pts {
+						if v, ok := p.Value(wantSpec.Stat); ok {
+							vals = append(vals, struct {
+								T time.Time
+								V float64
+							}{p.Start, v})
+						}
+					}
+					store.PutStatistics(key, rev, vals)
+					total += len(vals)
+				}
+				log.Info("ha: statistics backfilled", "rev", rev, "points", total)
+			},
+		}
 	}
 
 	go store.Run(ctx, time.Duration(*tickMS)*time.Millisecond)
@@ -119,7 +161,7 @@ func main() {
 		entities = append(entities, e)
 	}
 	subs = entities
-	go ha.Run(ctx, *haURL, token, subs, forecastFor, store, func() {
+	go ha.Run(ctx, *haURL, token, subs, forecastFor, statsReq, store, func() {
 		log.Info("ha: subscribed", "entities", len(subs))
 	}, log)
 
@@ -136,6 +178,18 @@ func main() {
 		fatal(log, err.Error())
 	}
 	log.Info("hatty stopped")
+}
+
+// statsPeriodDuration maps a Home Assistant statistics period to its bucket.
+func statsPeriodDuration(p string) time.Duration {
+	switch p {
+	case "hour":
+		return time.Hour
+	case "day":
+		return 24 * time.Hour
+	default:
+		return 5 * time.Minute
+	}
 }
 
 func fatal(log *slog.Logger, msg string) {

@@ -16,6 +16,10 @@ type Conn struct {
 	ids          IDGen
 	log          *slog.Logger
 	forecastSeen bool
+
+	statsIDs map[uint64]bool
+	statsRev uint64
+	onStats  OnStatistics
 }
 
 // Dial connects and authenticates.
@@ -96,6 +100,30 @@ func (c *Conn) Ping() error {
 	return c.ws.WriteMessage(websocket.TextMessage, f)
 }
 
+// RequestStatistics asks for aggregated history and records the command id, so
+// the matching result can be recognised when it arrives.
+func (c *Conn) RequestStatistics(ids []string, start time.Time, period string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	id := c.ids.Next()
+	f, err := StatisticsFrame(id, ids, start.UTC().Format(time.RFC3339), "", period)
+	if err != nil {
+		return err
+	}
+	if c.statsIDs == nil {
+		c.statsIDs = map[uint64]bool{}
+	}
+	c.statsIDs[id] = true
+	return c.ws.WriteMessage(websocket.TextMessage, f)
+}
+
+// OnStatistics is invoked when a statistics result arrives. The revision rises
+// with each fetch so a later correction beats an earlier one in the ring
+// (finding E3) -- Home Assistant REVISES statistics, and first-write-wins would
+// discard the correction and make reconnect backfill a no-op.
+type OnStatistics func(rev uint64, byID map[string][]StatPoint)
+
 // Read returns the next entity event, skipping anything else.
 func (c *Conn) Read(deadline time.Duration) (*Event, error) {
 	for {
@@ -107,10 +135,25 @@ func (c *Conn) Read(deadline time.Duration) (*Event, error) {
 			return nil, err
 		}
 		var m struct {
-			Type  string          `json:"type"`
-			Event json.RawMessage `json:"event"`
+			ID     uint64          `json:"id"`
+			Type   string          `json:"type"`
+			Event  json.RawMessage `json:"event"`
+			Result json.RawMessage `json:"result"`
 		}
-		if json.Unmarshal(raw, &m) != nil || m.Type != "event" || len(m.Event) == 0 {
+		if json.Unmarshal(raw, &m) != nil {
+			continue
+		}
+		// A statistics response is a `result`, not an `event`, which is why it
+		// was invisible to a reader that only looked at events.
+		if m.Type == "result" && c.statsIDs[m.ID] {
+			delete(c.statsIDs, m.ID)
+			if c.onStats != nil && len(m.Result) > 0 {
+				c.statsRev++
+				c.onStats(c.statsRev, decodeStatistics(m.Result))
+			}
+			continue
+		}
+		if m.Type != "event" || len(m.Event) == 0 {
 			continue
 		}
 		// A forecast event carries `{"type":"daily","forecast":[...]}`, not the
@@ -176,7 +219,15 @@ type Sink interface{ Ingest(*Event) }
 // The daemon and Home Assistant share a Proxmox host (D13), so a host reboot
 // takes both down at once: this must start cleanly against an HA that is not
 // yet listening rather than exiting.
-func Run(ctx context.Context, url string, token Secret, entityIDs []string, forecastFor string, sink Sink, onConnect func(), log *slog.Logger) {
+// StatsRequest describes the backfill a dashboard needs.
+type StatsRequest struct {
+	IDs    []string
+	Window time.Duration
+	Period string // "5minute" | "hour" | ...
+	On     OnStatistics
+}
+
+func Run(ctx context.Context, url string, token Secret, entityIDs []string, forecastFor string, stats *StatsRequest, sink Sink, onConnect func(), log *slog.Logger) {
 	backoff := time.Second
 	const maxBackoff = 30 * time.Second
 
@@ -206,6 +257,17 @@ func Run(ctx context.Context, url string, token Secret, entityIDs []string, fore
 				if err := c.SubscribeForecast(forecastFor, ft); err != nil {
 					log.Warn("ha: forecast subscribe failed", "type", ft, "err", err)
 				}
+			}
+		}
+		// Backfill on EVERY connection, not just the first. A reconnect exists
+		// to repair a gap, and the ring's provenance rules let a refetch land
+		// on buckets that are already full (finding E3).
+		if stats != nil && len(stats.IDs) > 0 {
+			c.onStats = stats.On
+			if err := c.RequestStatistics(stats.IDs, time.Now().Add(-stats.Window), stats.Period); err != nil {
+				log.Warn("ha: statistics request failed", "err", err)
+			} else {
+				log.Info("ha: statistics requested", "ids", len(stats.IDs), "window", stats.Window)
 			}
 		}
 		if onConnect != nil {

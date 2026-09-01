@@ -354,7 +354,7 @@ func boolStr(b bool) string {
 func buildChart(p config.Panel, r Resolver, th *widget.Theme) *widget.RunChart {
 	c := &widget.RunChart{Unit: p.Unit, Legend: true}
 	for _, sp := range p.Series {
-		pts := r.Snap.Series(sp.Bind)
+		pts := r.Snap.Series(sp.SeriesKey())
 		if len(pts) == 0 {
 			continue
 		}
@@ -378,6 +378,12 @@ func TrackedSeries(d *config.Dashboard, window time.Duration, points int) map[st
 			if err != nil {
 				continue
 			}
+			if sp.Stat != "" {
+				// Statistic-backed: filled by backfill, never by live
+				// accumulation, so it gets a ring but no extractor.
+				out[sp.SeriesKey()] = nil
+				continue
+			}
 			bind := b
 			out[sp.Bind] = func(e *state.Entity) (float64, bool) {
 				if e.ID != bind.Entity {
@@ -393,6 +399,30 @@ func TrackedSeries(d *config.Dashboard, window time.Duration, points int) map[st
 		}
 	}
 	return out
+}
+
+// StatSeries lists the statistic-backed series: the entity ids to request, and
+// which aggregate each series wants.
+func StatSeries(d *config.Dashboard) (ids []string, want map[string]struct{ Entity, Stat string }) {
+	want = map[string]struct{ Entity, Stat string }{}
+	seen := map[string]bool{}
+	for _, p := range d.Panels {
+		for _, sp := range p.Series {
+			if sp.Stat == "" {
+				continue
+			}
+			b, err := config.ParseBinding(sp.Bind)
+			if err != nil {
+				continue
+			}
+			want[sp.SeriesKey()] = struct{ Entity, Stat string }{b.Entity, sp.Stat}
+			if !seen[b.Entity] {
+				seen[b.Entity] = true
+				ids = append(ids, b.Entity)
+			}
+		}
+	}
+	return ids, want
 }
 
 func buildDecisions(p config.Panel, r Resolver, th *widget.Theme) (*widget.Decisions, int) {
