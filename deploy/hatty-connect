@@ -43,11 +43,22 @@ override_var="HATTY_FONT_$(printf '%s' "$DASHBOARD" | tr '[:lower:]-' '[:upper:]
 FONT=${!override_var:-$HATTY_FONT}
 
 exec_ssh() {
+    # StrictHostKeyChecking=accept-new is trust-on-first-use: the daemon's host
+    # key is pinned the first time and a CHANGE is refused thereafter.
+    #
+    # Chosen deliberately. Without it an appliance fails its very first boot
+    # with "Host key verification failed" and then retries forever on something
+    # retrying cannot fix -- which is exactly what this script did before the
+    # first end-to-end test on the Pi.
+    #
+    # For a stricter posture, pre-seed known_hosts during install and set
+    # HATTY_STRICT_HOST_KEY=yes; see deploy/README.md.
+    local hostkey=${HATTY_STRICT_HOST_KEY:+yes}
     ssh -tt \
         -p "$HATTY_PORT" \
+        -o StrictHostKeyChecking="${hostkey:-accept-new}" \
         -o ServerAliveInterval=15 \
         -o ServerAliveCountMax=3 \
-        -o ExitOnForwardFailure=yes \
         "${HATTY_USER}@${HATTY_HOST}" "$DASHBOARD"
 }
 
@@ -62,10 +73,31 @@ else
 fi
 
 while :; do
-    run
+    run 2> >(tee /tmp/hatty-connect.err >&2)
     status=$?
-    # 0 means the user quit deliberately; anything else is a lost connection.
+    # 0 means the user quit deliberately.
     [ $status -eq 0 ] && exit 0
+
+    # Distinguish a condition retrying will fix from one it will not. Looping
+    # silently on a host-key mismatch or a rejected key would leave an appliance
+    # blank with no explanation.
+    if grep -qi 'host key verification failed\|REMOTE HOST IDENTIFICATION HAS CHANGED' \
+            /tmp/hatty-connect.err 2>/dev/null; then
+        cat >&2 <<MSG
+hatty-connect: the daemon's host key is not trusted, and retrying will not fix that.
+  first run    : remove HATTY_STRICT_HOST_KEY, or run
+                 ssh-keyscan -p ${HATTY_PORT} ${HATTY_HOST} >> ~/.ssh/known_hosts
+  key changed  : verify the daemon was legitimately reinstalled, then remove the
+                 stale entry with ssh-keygen -R "[${HATTY_HOST}]:${HATTY_PORT}"
+MSG
+        exit 74
+    fi
+    if grep -qi 'permission denied' /tmp/hatty-connect.err 2>/dev/null; then
+        echo "hatty-connect: key rejected. Add this Pi's public key to the daemon's" >&2
+        echo "  authorized_keys and run: systemctl reload hatty" >&2
+        exit 77
+    fi
+
     echo "hatty-connect: disconnected (status $status), retrying in ${HATTY_RETRY}s" >&2
     sleep "$HATTY_RETRY"
 done

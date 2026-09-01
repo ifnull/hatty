@@ -63,11 +63,46 @@ sudo install -m 0644 deploy/hatty-kiosk.service /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable --now hatty-kiosk
 ```
 
+### Host keys
+
+`hatty-connect` uses `StrictHostKeyChecking=accept-new` — trust on first use.
+The daemon's key is pinned on the first connection and a *change* is refused
+afterwards. Without this an appliance fails its first boot and then retries
+forever on something retrying cannot fix.
+
+For a stricter posture, pre-seed the key at install time and pin the setting:
+
+```bash
+ssh-keyscan -p 2222 dashboard-server >> ~/.ssh/known_hosts
+echo 'HATTY_STRICT_HOST_KEY=yes' | sudo tee -a /etc/hatty/connect.conf
+```
+
+The launcher distinguishes a condition retrying will fix from one it will not:
+a host-key mismatch exits 74 and a rejected key exits 77, each with the command
+that repairs it, rather than looping silently against a blank panel.
+
 To try it without committing to the kiosk:
 
 ```bash
 hatty-connect radar
 ```
+
+## Verified on the target
+
+Tested end to end on `control-panel-mini` (Raspberry Pi 3B) against the live
+instance:
+
+| | |
+|---|---|
+| First connect with an unknown host key | accepted, pinned, frame rendered |
+| Daemon logged the session | `session: open … cols=100 rows=32`, 10 frames, 0 dropped |
+| **Daemon down at launch** | retried twice, connected as soon as it came up |
+| Key not in the allow-list | exit 77 with the repair command, no loop |
+| No dashboard argument | exit 64 with usage |
+
+The third row is the D13 case: the Proxmox host reboot takes the daemon and
+Home Assistant down together, and the Pi may well boot first. The launcher waits
+it out.
 
 ## Why it is shaped this way
 
