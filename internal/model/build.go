@@ -67,6 +67,13 @@ func buildPanel(p config.Panel, r Resolver, th *widget.Theme) (widget.Widget, la
 		spec.MaxRows = spec.NatRows // F1: bounded by the record, like the table
 		return d, spec
 
+	case "decisions":
+		d, n := buildDecisions(p, r, th)
+		spec.MinRows = 1
+		spec.NatRows = n
+		spec.MaxRows = n
+		return d, spec
+
 	case "status_bar":
 		spec.Reserve, spec.Rule = true, true
 		return &widget.StatusBar{Left: p.Left, Keys: p.Keys}, spec
@@ -322,6 +329,50 @@ func boolStr(b bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+// buildDecisions evaluates each trigger.
+//
+// D43/D44: the MVP set is gusts now (Tempest), freezing tonight (Met.no daily
+// templow, already in HA), and windy later. "Gusty later" is a fast-follow: no
+// configured provider exposes wind_gust_speed in a forecast.
+func buildDecisions(p config.Panel, r Resolver, th *widget.Theme) (*widget.Decisions, int) {
+	d := &widget.Decisions{Nominal: p.Nominal}
+	for _, dec := range p.Decisions {
+		c, err := config.ParseCondition(dec.When)
+		if err != nil {
+			continue
+		}
+		v := r.Resolve(c.Bind, 0)
+
+		// E10: a safety decision is NEVER suppressed for stale data. It renders
+		// with its age shown, because a stale freeze warning beats none.
+		if !v.Kind.Usable() {
+			if v.Kind == state.Stale && dec.SafetyOrDefault() {
+				// fall through and evaluate anyway
+			} else {
+				continue
+			}
+		}
+		numeric := v.Str != "" || v.Num != 0
+		if !c.Test(v.Num, v.Str, numeric) {
+			continue
+		}
+		f := widget.Decision{Say: dec.Say, Level: dec.Level}
+		if dec.Detail != "" {
+			f.Detail = expand(dec.Detail, p.Vars, r, th)
+		}
+		if v.Kind == state.Stale {
+			f.Stale = true
+			f.Age = "data " + Relative(state.Value{Changed: v.Seen})
+		}
+		d.Fired = append(d.Fired, f)
+	}
+	n := len(d.Fired)
+	if n == 0 {
+		n = 1
+	}
+	return d, n
 }
 
 func buildDetail(p config.Panel, r Resolver, th *widget.Theme) (*widget.Detail, int) {

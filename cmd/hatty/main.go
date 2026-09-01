@@ -26,13 +26,14 @@ const tokenEnv = "HATTY_HA_TOKEN"
 
 func main() {
 	var (
-		dashPath = flag.String("dashboard", "", "dashboard TOML (required)")
-		haURL    = flag.String("ha", "ws://ha.home.arpa:8123/api/websocket", "Home Assistant WebSocket URL")
-		addr     = flag.String("addr", "0.0.0.0:2222", "SSH listen address")
-		authKeys = flag.String("authorized-keys", "authorized_keys", "SSH allow-list")
-		hostKey  = flag.String("host-key", "hatty_host_key", "SSH host key")
-		tickMS   = flag.Int("tick", 250, "render coalescing interval, ms")
-		debug    = flag.Bool("debug", false, "verbose logging")
+		dashPath      = flag.String("dashboard", "", "dashboard TOML (required)")
+		haURL         = flag.String("ha", "ws://ha.home.arpa:8123/api/websocket", "Home Assistant WebSocket URL")
+		addr          = flag.String("addr", "0.0.0.0:2222", "SSH listen address")
+		authKeys      = flag.String("authorized-keys", "authorized_keys", "SSH allow-list")
+		hostKey       = flag.String("host-key", "hatty_host_key", "SSH host key")
+		tickMS        = flag.Int("tick", 250, "render coalescing interval, ms")
+		weatherEntity = flag.String("weather", "weather.forecast_home", "weather entity for forecasts")
+		debug         = flag.Bool("debug", false, "verbose logging")
 	)
 	flag.Parse()
 
@@ -92,7 +93,21 @@ func main() {
 		"dashboard", dash.Name, "entities", len(subs),
 		"target", fmt.Sprintf("%dx%d", dash.Display.Cols, dash.Display.Rows))
 
-	go ha.Run(ctx, *haURL, token, subs, store, func() {
+	// forecast.home is a PSEUDO-entity: it exists only in hatty's store, fed by
+	// weather/subscribe_forecast. Home Assistant has never heard of it, so it
+	// must be filtered out of subscribe_entities -- and its presence is what
+	// tells us to open the weather subscription instead (E5, D43).
+	forecastFor := ""
+	entities := subs[:0:0]
+	for _, e := range subs {
+		if e == ha.ForecastEntity {
+			forecastFor = *weatherEntity
+			continue
+		}
+		entities = append(entities, e)
+	}
+	subs = entities
+	go ha.Run(ctx, *haURL, token, subs, forecastFor, store, func() {
 		log.Info("ha: subscribed", "entities", len(subs))
 	}, log)
 

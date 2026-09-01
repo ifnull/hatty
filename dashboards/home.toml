@@ -1,0 +1,130 @@
+# The home screen exists to answer two questions (D43), not to list sensors:
+#   how should I dress or plan when leaving the house, and
+#   what do I need to do to make sure the house is prepared?
+name  = "home"
+title = "hatty · home"
+
+[display]
+resolution = "800x480"
+font       = "DejaVu Sans Mono:size=8"
+cols       = 100
+rows       = 32
+min_cols   = 44
+min_rows   = 12
+glyphs     = "full"
+colors     = 256
+
+# What to DO. The reason this screen exists.
+#
+# D44 trimmed the MVP set by one: "gusty later" would need a forecast provider
+# exposing wind_gust_speed, and none configured here does. Met.no gives daily
+# average wind only, so the windy-later trigger says so on screen rather than
+# implying a gust forecast it does not have.
+[[panel]]
+type    = "decisions"
+elastic = 1
+nominal = "nothing to do · conditions nominal"
+
+  [[panel.decision]]
+  when   = "sensor.st_00128663_wind_gust > 25"
+  say    = "Take the flag down · secure loose items"
+  level  = "warn"
+
+  [[panel.decision]]
+  when   = "forecast.home:daily[0].templow < 32"
+  say    = "Cover external water fixtures tonight"
+  level  = "warn"
+  # safety defaults to true (E10): shown with its age if the forecast goes
+  # stale, never withheld. A stale freeze warning beats no freeze warning.
+
+  [[panel.decision]]
+  when   = "forecast.home:daily[0].wind_speed > 18"
+  say    = "Windy today · bring in loose items before leaving"
+  level  = "warn"
+  detail = "forecast average, not gust"
+
+# Conditions for the leaving-the-house decision: typical, not worst case.
+[[panel]]
+type    = "detail"
+follows = "outside"
+
+  [[panel.field]]
+  label  = "Feels like"
+  bind   = "sensor.st_00128663_feels_like"
+  format = "%.1f"
+  [[panel.field]]
+  label  = "Humidity"
+  bind   = "sensor.st_00128663_humidity"
+  format = "%.0f"
+  [[panel.field]]
+  # D43: wind_speed_average is the TYPICAL case, for planning. wind_gust is the
+  # worst case and drives the decision above. wind_speed -- the 3-second rapid
+  # sample -- answers neither question and is deliberately unbound.
+  label  = "Wind"
+  bind   = "sensor.st_00128663_wind_speed_average"
+  format = "%.1f"
+  [[panel.field]]
+  label  = "Gusting"
+  bind   = "sensor.st_00128663_wind_gust"
+  format = "%.1f"
+  [[panel.field]]
+  label  = "Rain today"
+  bind   = "sensor.st_00128663_precipitation"
+  format = "%.2f"
+  [[panel.field]]
+  label  = "Low tonight"
+  bind   = "forecast.home:daily[0].templow"
+  format = "%.0f"
+  [[panel.field]]
+  label  = "High today"
+  bind   = "forecast.home:daily[0].temperature"
+  format = "%.0f"
+  [[panel.field]]
+  # D42: the vendor calls 2.61 V GOOD while the inherited Lovelace thresholds
+  # called it a warning. Bind the integration's own percentage instead, which
+  # agrees with the app.
+  label  = "Tempest battery"
+  bind   = "sensor.st_00128663_battery"
+  format = "%.0f"
+
+[[panel]]
+type    = "detail"
+follows = "inside"
+elastic = 2
+
+  [[panel.field]]
+  label  = "Awair score"
+  bind   = "sensor.awair_element_128797_score"
+  format = "%.0f"
+  [[panel.field]]
+  label  = "Temperature"
+  bind   = "sensor.awair_element_128797_temperature"
+  format = "%.1f"
+  [[panel.field]]
+  label  = "Humidity"
+  bind   = "sensor.awair_element_128797_humidity"
+  format = "%.0f"
+  [[panel.field]]
+  label  = "CO₂"
+  bind   = "sensor.awair_element_128797_carbon_dioxide"
+  format = "%.0f"
+  [[panel.field]]
+  label  = "VOC"
+  bind   = "sensor.awair_element_128797_volatile_organic_compounds_parts"
+  format = "%.0f"
+  [[panel.field]]
+  label  = "PM2.5"
+  bind   = "sensor.awair_element_128797_pm2_5"
+  format = "%.1f"
+  [[panel.field]]
+  label  = "Last strike"
+  bind   = "event.st_00128663_lightning_strike"
+  format = "relative"
+  # A4: no stale_after. An event entity quiet for three days is CORRECT, not
+  # stale, and marking it stale trains the reader to ignore the indicator.
+
+[[panel]]
+type    = "status_bar"
+reserve = true
+left    = "hatty · home"
+keys    = "q quit"

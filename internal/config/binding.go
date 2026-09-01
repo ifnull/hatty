@@ -182,3 +182,71 @@ func ParseGuardBinding(s string) (Binding, error) {
 	}
 	return ParseBinding(f[0])
 }
+
+// Condition is a decision trigger: one binding, one operator, one literal.
+//
+// Deliberately NOT an expression language (D25). If a trigger needs `and`, it
+// belongs in a Home Assistant template binary sensor, where the template engine
+// already exists and the user already keeps such things. The restriction is the
+// point: it is what stops the config model becoming a programming language.
+type Condition struct {
+	Bind Binding
+	Op   string // < <= > >= == !=
+	Want float64
+	Str  string // set when the literal is not numeric
+	raw  string
+}
+
+func (c Condition) String() string { return c.raw }
+
+// ParseCondition parses `<binding> <op> <literal>`.
+func ParseCondition(s string) (Condition, error) {
+	f := strings.Fields(strings.TrimSpace(s))
+	if len(f) != 3 {
+		return Condition{}, fmt.Errorf("when must read `<binding> <op> <value>`, got %q", s)
+	}
+	switch f[1] {
+	case "<", "<=", ">", ">=", "==", "!=":
+	default:
+		return Condition{}, fmt.Errorf("when: unsupported operator %q in %q", f[1], s)
+	}
+	b, err := ParseBinding(f[0])
+	if err != nil {
+		return Condition{}, err
+	}
+	c := Condition{Bind: b, Op: f[1], raw: strings.TrimSpace(s)}
+	if v, err := strconv.ParseFloat(f[2], 64); err == nil {
+		c.Want = v
+	} else {
+		c.Str = strings.Trim(f[2], `"'`)
+	}
+	return c, nil
+}
+
+// Test evaluates the condition against a resolved value.
+func (c Condition) Test(num float64, str string, numeric bool) bool {
+	if c.Str != "" || !numeric {
+		switch c.Op {
+		case "==":
+			return str == c.Str
+		case "!=":
+			return str != c.Str
+		}
+		return false
+	}
+	switch c.Op {
+	case "<":
+		return num < c.Want
+	case "<=":
+		return num <= c.Want
+	case ">":
+		return num > c.Want
+	case ">=":
+		return num >= c.Want
+	case "==":
+		return num == c.Want
+	case "!=":
+		return num != c.Want
+	}
+	return false
+}

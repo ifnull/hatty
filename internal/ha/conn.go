@@ -12,9 +12,10 @@ import (
 
 // Conn is one WebSocket connection to Home Assistant.
 type Conn struct {
-	ws  *websocket.Conn
-	ids IDGen
-	log *slog.Logger
+	ws           *websocket.Conn
+	ids          IDGen
+	log          *slog.Logger
+	forecastSeen bool
 }
 
 // Dial connects and authenticates.
@@ -65,6 +66,20 @@ func Dial(ctx context.Context, url string, token Secret, log *slog.Logger) (*Con
 
 func (c *Conn) Close() error { return c.ws.Close() }
 
+// SubscribeForecast subscribes to a weather forecast.
+//
+// Verified live: `daily` returns 6 entries (~1.2 KB) including templow, which
+// is what makes the freeze decision possible, and `hourly` returns 48 (~10 KB).
+// weather.forecast_home exposes NOTHING useful in its attributes -- modern Home
+// Assistant moved forecasts to this subscription (D43).
+func (c *Conn) SubscribeForecast(entityID, forecastType string) error {
+	f, err := ForecastFrame(c.ids.Next(), entityID, forecastType)
+	if err != nil {
+		return err
+	}
+	return c.ws.WriteMessage(websocket.TextMessage, f)
+}
+
 // SubscribeEntities subscribes with a server-side entity filter (D6).
 func (c *Conn) SubscribeEntities(ids []string) error {
 	f, err := SubscribeEntitiesFrame(c.ids.Next(), ids)
@@ -98,6 +113,13 @@ func (c *Conn) Read(deadline time.Duration) (*Event, error) {
 		if json.Unmarshal(raw, &m) != nil || m.Type != "event" || len(m.Event) == 0 {
 			continue
 		}
+		// A forecast event carries `{"type":"daily","forecast":[...]}`, not the
+		// a/c/r shape. It is translated into an ordinary entity event for the
+		// pseudo-entity `forecast.home`, so there is ONE binding grammar and
+		// nothing downstream knows the forecast is special (finding E5).
+		if ev := c.forecastEvent(m.Event); ev != nil {
+			return ev, nil
+		}
 		ev, err := DecodeEvent(m.Event)
 		if err != nil {
 			c.log.Warn("ha: undecodable event", "err", err)
@@ -105,6 +127,40 @@ func (c *Conn) Read(deadline time.Duration) (*Event, error) {
 		}
 		return ev, nil
 	}
+}
+
+// ForecastEntity is the pseudo-entity id the forecast is published under.
+const ForecastEntity = "forecast.home"
+
+// forecastEvent translates a forecast subscription event into an entity event.
+// Returns nil if this is not a forecast event.
+func (c *Conn) forecastEvent(raw json.RawMessage) *Event {
+	var f struct {
+		Type     string            `json:"type"`
+		Forecast []json.RawMessage `json:"forecast"`
+	}
+	if json.Unmarshal(raw, &f) != nil || f.Forecast == nil || f.Type == "" {
+		return nil
+	}
+	list := make([]any, 0, len(f.Forecast))
+	for _, e := range f.Forecast {
+		var m map[string]any
+		if json.Unmarshal(e, &m) == nil {
+			list = append(list, m)
+		}
+	}
+	attrs, _ := json.Marshal(map[string]any{f.Type: list})
+
+	// The first forecast type seen ADDS the entity; later types must MERGE, or
+	// subscribing to both daily and hourly would leave only whichever arrived
+	// last -- the same replace-versus-merge trap as D18.
+	if !c.forecastSeen {
+		c.forecastSeen = true
+		full, _ := json.Marshal(map[string]any{"s": "ok", "a": json.RawMessage(attrs)})
+		return &Event{Add: map[string]json.RawMessage{ForecastEntity: full}}
+	}
+	diff, _ := json.Marshal(map[string]any{"+": map[string]any{"a": json.RawMessage(attrs)}})
+	return &Event{Change: map[string]json.RawMessage{ForecastEntity: diff}}
 }
 
 // Sink receives events from the connection runner.
@@ -120,7 +176,7 @@ type Sink interface{ Ingest(*Event) }
 // The daemon and Home Assistant share a Proxmox host (D13), so a host reboot
 // takes both down at once: this must start cleanly against an HA that is not
 // yet listening rather than exiting.
-func Run(ctx context.Context, url string, token Secret, entityIDs []string, sink Sink, onConnect func(), log *slog.Logger) {
+func Run(ctx context.Context, url string, token Secret, entityIDs []string, forecastFor string, sink Sink, onConnect func(), log *slog.Logger) {
 	backoff := time.Second
 	const maxBackoff = 30 * time.Second
 
@@ -144,6 +200,13 @@ func Run(ctx context.Context, url string, token Secret, entityIDs []string, sink
 			log.Warn("ha: subscribe failed", "err", err)
 			c.Close()
 			continue
+		}
+		if forecastFor != "" {
+			for _, ft := range []string{"daily", "hourly"} {
+				if err := c.SubscribeForecast(forecastFor, ft); err != nil {
+					log.Warn("ha: forecast subscribe failed", "type", ft, "err", err)
+				}
+			}
 		}
 		if onConnect != nil {
 			onConnect()

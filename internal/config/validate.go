@@ -95,6 +95,22 @@ func Validate(d *Dashboard) Errors {
 				add("%s field %q: %v", where, f.Label, err)
 			}
 		}
+		for _, dec := range p.Decisions {
+			if _, err := ParseCondition(dec.When); err != nil {
+				add("%s decision %q: %v", where, dec.Say, err)
+			}
+			if strings.TrimSpace(dec.Say) == "" {
+				add("%s: a decision with no `say` states no action", where)
+			}
+		}
+		for _, dec := range p.Decisions {
+			if _, err := ParseCondition(dec.When); err != nil {
+				add("%s decision %q: %v", where, dec.Say, err)
+			}
+			if strings.TrimSpace(dec.Say) == "" {
+				add("%s: a decision with no `say` states no action", where)
+			}
+		}
 		for _, c := range p.Columns {
 			if c.Ramp != nil && len(c.Ramp.Palette) != len(c.Ramp.Thresholds)+1 {
 				add("%s column %q: ramp has %d thresholds and %d palette entries, want %d",
@@ -241,6 +257,11 @@ func panelBindings(p Panel) []string {
 	for _, f := range p.Fields {
 		if f.Bind != "" {
 			out = append(out, f.Bind)
+		}
+	}
+	for _, d := range p.Decisions {
+		if c, err := ParseCondition(d.When); err == nil {
+			out = append(out, c.Bind.String())
 		}
 	}
 	return out
