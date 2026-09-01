@@ -1,0 +1,15 @@
+# /etc/hatty/connect.conf -- read by hatty-connect on the Pi.
+
+HATTY_HOST=dashboard-server
+HATTY_PORT=2222
+HATTY_USER=hatty
+
+# D40: 100x32 on the 800x480 panel, chosen by reading all four measured grids.
+HATTY_FONT="DejaVu Sans Mono:size=8"
+
+# Per-dashboard override. The recorded fallback if 100x32 proves a squint over
+# long sessions is 80x25, which is an already-verified breakpoint -- a larger
+# font here is how that is applied, with no change to the daemon.
+# HATTY_FONT_HOME="DejaVu Sans Mono:size=9"
+
+HATTY_RETRY=5

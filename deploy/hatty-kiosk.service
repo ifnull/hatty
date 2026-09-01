@@ -1,0 +1,35 @@
+# The Pi. Boots straight into the dashboard with no desktop (D22, revised for
+# Wayland): cage is a kiosk compositor that runs exactly one application
+# fullscreen -- no panel, no window manager, no file manager.
+#
+# Measured on the target: the desktop chrome it replaces costs ~83 MB
+# (wf-panel-pi + pcmanfm + labwc), and foot is 2.9x lighter than LXTerminal.
+[Unit]
+Description=hatty kiosk — dashboard on the panel
+After=systemd-user-sessions.service
+Conflicts=getty@tty1.service
+After=getty@tty1.service
+
+[Service]
+Type=simple
+User=pi
+PAMName=login
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+WorkingDirectory=/home/pi
+
+# cage runs one app fullscreen; hatty-connect picks the font for the dashboard
+# and opens the session (D5).
+ExecStart=/usr/bin/cage -- /usr/local/bin/hatty-connect radar
+
+Restart=always
+RestartSec=3s
+StandardInput=tty-force
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target

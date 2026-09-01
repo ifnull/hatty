@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+#
+# hatty-connect -- the Pi-side launcher.
+#
+# DECISION D5: the daemon cannot set a font. A font is a property of the client
+# terminal, and hatty runs on the server; the only honest response to a mismatch
+# is a warning. So font-per-dashboard lives HERE, in the session layer, which is
+# the one place that can actually act on it.
+#
+# D22 was revised for Wayland: the Pi runs labwc, not X, so this is a `foot`
+# argument rather than setfont(8). foot was measured at 14.5 MB against
+# LXTerminal's 41.8 MB, and has no menu bar, title bar or preferences dialog to
+# fight (see docs/environment.md).
+#
+# D13: the daemon and Home Assistant share a Proxmox host, so a host reboot
+# takes both down at once and the Pi may well boot first. This RETRIES rather
+# than exiting -- an appliance that gives up because it booted too fast is not
+# an appliance.
+set -uo pipefail
+
+CONF=${HATTY_CONNECT_CONF:-/etc/hatty/connect.conf}
+DASHBOARD=${1:-}
+
+# Defaults, overridable in $CONF or the environment.
+HATTY_HOST=${HATTY_HOST:-dashboard-server}
+HATTY_PORT=${HATTY_PORT:-2222}
+HATTY_USER=${HATTY_USER:-hatty}
+HATTY_FONT=${HATTY_FONT:-DejaVu Sans Mono:size=8}   # D40: 100x32 on the panel
+HATTY_RETRY=${HATTY_RETRY:-5}
+
+[ -r "$CONF" ] && . "$CONF"
+
+if [ -z "$DASHBOARD" ]; then
+    echo "usage: hatty-connect <dashboard>   (e.g. radar, home)" >&2
+    exit 64
+fi
+
+# Per-dashboard font override: HATTY_FONT_RADAR, HATTY_FONT_HOME, ...
+# This is the whole point of the launcher -- a screen designed at 80x25 can ask
+# for a larger font than one designed at 100x32, and only the client can honour
+# that (D40, and the fallback recorded with it).
+override_var="HATTY_FONT_$(printf '%s' "$DASHBOARD" | tr '[:lower:]-' '[:upper:]_')"
+FONT=${!override_var:-$HATTY_FONT}
+
+exec_ssh() {
+    ssh -tt \
+        -p "$HATTY_PORT" \
+        -o ServerAliveInterval=15 \
+        -o ServerAliveCountMax=3 \
+        -o ExitOnForwardFailure=yes \
+        "${HATTY_USER}@${HATTY_HOST}" "$DASHBOARD"
+}
+
+# A terminal is only allocated if we are not already inside one that is
+# fullscreen; running under cage, foot IS the session.
+if [ -n "${HATTY_NO_TERMINAL:-}" ]; then
+    run() { exec_ssh; }
+else
+    run() { foot --font="$FONT" --fullscreen --title "hatty · $DASHBOARD" \
+                 -e "$0" "$DASHBOARD"; }
+    export HATTY_NO_TERMINAL=1
+fi
+
+while :; do
+    run
+    status=$?
+    # 0 means the user quit deliberately; anything else is a lost connection.
+    [ $status -eq 0 ] && exit 0
+    echo "hatty-connect: disconnected (status $status), retrying in ${HATTY_RETRY}s" >&2
+    sleep "$HATTY_RETRY"
+done

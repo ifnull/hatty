@@ -1,0 +1,62 @@
+# The daemon. Runs on the Proxmox host alongside Home Assistant (D13).
+[Unit]
+Description=hatty — terminal Home Assistant dashboard daemon
+Documentation=https://github.com/ifnull/hatty
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hatty
+Group=hatty
+
+# D15: the token is NEVER a command-line argument -- it would appear in ps
+# output and shell history. LoadCredential keeps it out of the environment of
+# every other process too; the EnvironmentFile line is the simpler fallback.
+LoadCredential=ha_token:/etc/hatty/ha_token
+Environment=HATTY_HA_TOKEN_FILE=%d/ha_token
+# EnvironmentFile=/etc/hatty/token.env      # alternative; must be mode 0600
+
+ExecStart=/usr/local/bin/hatty \
+    --dashboard /etc/hatty/dashboards/radar.toml \
+    --ha ws://ha.home.arpa:8123/api/websocket \
+    --addr 0.0.0.0:2222 \
+    --authorized-keys /etc/hatty/authorized_keys \
+    --host-key /var/lib/hatty/host_key
+
+# D13: a Proxmox host reboot takes the daemon and Home Assistant down together,
+# so hatty may well start before HA is listening. It retries with backoff rather
+# than exiting, and systemd restarts it if it dies for another reason.
+Restart=on-failure
+RestartSec=5s
+
+# E9: SIGHUP reloads authorized_keys, so a key can be added or revoked without
+# dropping every live session.
+ExecReload=/bin/kill -HUP $MAINPID
+
+# r3 §11: logs go to stderr, and therefore the journal. NEVER stdout -- stdout
+# is a rendered terminal for every session and one stray line corrupts a frame.
+StandardOutput=null
+StandardError=journal
+
+# Hardening. The daemon holds a Home Assistant token and serves home-relative
+# aircraft bearings, which against public ADS-B history locate the house (D27).
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+StateDirectory=hatty
+ReadWritePaths=/var/lib/hatty
+
+[Install]
+WantedBy=multi-user.target
