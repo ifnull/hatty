@@ -4,10 +4,10 @@ HATTY_HOST=dashboard-server
 HATTY_PORT=2222
 HATTY_USER=hatty
 
-# D45: size 10 gives 100x28 on the 800x480 panel -- MEASURED in foot, not
-# extrapolated. No size produces D40's 100x32; size 9 gives 114x32 but shrinks
-# characters to 1.36 mm, and D40 was chosen on readability at 1.55 mm.
-HATTY_FONT="DejaVu Sans Mono:size=10"
+# D46: size 12 gives 80x25 -- 1.94 mm characters, chosen by reading the real
+# panel. This is the fallback D38/D40 recorded when they adopted 100x32, so the
+# design was already verified at this breakpoint.
+HATTY_FONT="DejaVu Sans Mono:size=12"
 
 # Per-dashboard override. The recorded fallback if 100x32 proves a squint over
 # long sessions is 80x25, which is an already-verified breakpoint -- a larger
