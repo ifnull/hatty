@@ -32,9 +32,19 @@ type Display struct {
 
 // Panel is one region of a screen.
 type Panel struct {
-	Type    string `toml:"type"`
-	Bind    string `toml:"bind"`
-	Reserve bool   `toml:"reserve"` // never collapses at any size (alert strip)
+	Type string `toml:"type"`
+	Bind string `toml:"bind"`
+
+	// Binds unions several collections into one table.
+	//
+	// FINDING F0: D41 specifies the table as "the union of the flag
+	// collections, deduplicated by hex", because ha-airspace has no
+	// full-aircraft-list entity -- only airspace_flag_* collections, each
+	// capped at ten. Binding one of them showed two contacts against 71
+	// tracked, which is why the live screen looked empty.
+	Binds   []string `toml:"binds"`
+	Dedupe  string   `toml:"dedupe"`  // record key that identifies a duplicate
+	Reserve bool     `toml:"reserve"` // never collapses at any size (alert strip)
 
 	// Elastic is a RANK, not a flag (finding B1). Revision 2 required exactly
 	// one elastic panel and then let the solver drop it, leaving zero at
@@ -42,7 +52,13 @@ type Panel struct {
 	// highest-ranked SURVIVING panel. Zero means not elastic.
 	Elastic int `toml:"elastic"`
 
-	Follows string            `toml:"follows"`
+	Follows string `toml:"follows"`
+
+	// Left and Keys are LITERAL text for the status bar, not bindings. Reusing
+	// Source/Nominal for them made validation reject "hatty · radar" as a
+	// malformed entity id -- correctly, since Source is a binding.
+	Left    string            `toml:"left"`
+	Keys    string            `toml:"keys"`
 	Source  string            `toml:"source"`
 	Nominal string            `toml:"nominal"`
 	Hold    duration          `toml:"hold"` // alert stickiness (finding E2)

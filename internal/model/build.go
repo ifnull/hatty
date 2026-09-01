@@ -1,7 +1,10 @@
 package model
 
 import (
+	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ifnull/hatty/internal/config"
@@ -49,21 +52,22 @@ func buildPanel(p config.Panel, r Resolver, th *widget.Theme) (widget.Widget, la
 	case "table":
 		t, rows := buildTable(p, r, th)
 		spec.MinRows = 3
-		spec.NatRows = rows + 1
-		if p.Bind != "" {
-			spec.NatRows++ // the subset note (D41)
-		}
+		spec.NatRows = rows + 2 // header + the subset note (D41)
+		// F1: a table cannot draw more rows than it has contacts, so it must
+		// not absorb space it will render blank.
+		spec.MaxRows = spec.NatRows
 		return t, spec
 
 	case "detail":
 		d, n := buildDetail(p, r, th)
 		spec.MinRows = 2
 		spec.NatRows = n + 1
+		spec.MaxRows = spec.NatRows // F1: bounded by the record, like the table
 		return d, spec
 
 	case "status_bar":
 		spec.Reserve = true
-		return &widget.StatusBar{Left: p.Source, Keys: p.Nominal}, spec
+		return &widget.StatusBar{Left: p.Left, Keys: p.Keys}, spec
 	}
 	return nil, spec
 }
@@ -152,15 +156,49 @@ func buildTable(p config.Panel, r Resolver, th *widget.Theme) (*widget.Table, in
 			Align:  al,
 		})
 	}
-	if p.Bind == "" {
+	binds := p.Binds
+	if p.Bind != "" {
+		binds = append([]string{p.Bind}, binds...)
+	}
+	if len(binds) == 0 {
 		return t, 0
 	}
-	b, err := config.ParseBinding(p.Bind)
-	if err != nil {
-		return t, 0
+
+	// F0: union the collections, deduplicating by the declared key. An
+	// aircraft can be both military and interesting, and ha-airspace lists it
+	// in both -- showing it twice would be wrong, and picking one collection
+	// arbitrarily is what made the live screen look empty.
+	var records []map[string]any
+	seen := map[string]bool{}
+	truncated := false
+	for _, bs := range binds {
+		b, err := config.ParseBinding(bs)
+		if err != nil {
+			continue
+		}
+		v := r.Resolve(b, 0)
+		got := Rows(v)
+		// The collection is capped at ten by ha-airspace while the entity
+		// state carries the true count, so the two legitimately disagree (D41).
+		if ent := r.Snap.Get(b.Entity); ent != nil {
+			if n, err := strconv.Atoi(strings.TrimSpace(ent.State)); err == nil && n > len(got) {
+				truncated = true
+			}
+		}
+		for _, rec := range got {
+			if p.Dedupe != "" {
+				k, _ := rec[p.Dedupe].(string)
+				if k != "" {
+					if seen[k] {
+						continue
+					}
+					seen[k] = true
+				}
+			}
+			records = append(records, rec)
+		}
 	}
-	v := r.Resolve(b, 0)
-	records := Rows(v)
+	t.Note = subsetNote(len(records), truncated, r)
 
 	if p.Sort != nil && p.Sort.Key != "" {
 		sortRecords(records, p.Sort)
@@ -231,6 +269,23 @@ func sortRecords(recs []map[string]any, s *config.Sort) {
 		}
 		return a < b
 	})
+}
+
+// subsetNote states what the table is showing and what it is not.
+//
+// D41: the table can only ever show FLAGGED contacts, and the flag collections
+// are capped at ten each, so both the subset and the cap must be visible.
+// Silently showing ten of eleven military aircraft is the quiet wrongness this
+// project exists to avoid.
+func subsetNote(shown int, truncated bool, r Resolver) string {
+	note := fmt.Sprintf("%d flagged", shown)
+	if c := r.Snap.Get("sensor.airspace_aircraft_count"); c != nil && c.State != "" {
+		note += " of " + c.State + " tracked"
+	}
+	if truncated {
+		note += " · lists capped at 10 per flag"
+	}
+	return note
 }
 
 func recordCell(rec map[string]any, c config.Column, th *widget.Theme) widget.Cell {

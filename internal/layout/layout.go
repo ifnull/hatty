@@ -57,14 +57,32 @@ type Spec struct {
 	// show.
 	Elastic int
 
+	// MaxRows caps what a panel can usefully occupy. Zero means unbounded.
+	//
+	// FINDING F1: elasticity assumed some panel would grow to fill the grid.
+	// Both candidates on `radar` are DATA-BOUNDED -- the table shows however
+	// many contacts are flagged, the detail pane however many fields the record
+	// has -- so at 100x32 the elastic panel absorbed 22 rows it could not draw,
+	// and the trapped space D37 exists to eliminate simply moved from the
+	// bottom of the frame into the middle of a panel.
+	//
+	// With a cap, leftover falls through to the next elastic rank, and if no
+	// panel can use it the remainder becomes an explicit Gap region -- placed
+	// where the blank belongs rather than swallowed by a panel.
+	MaxRows int
+
 	// DropRank orders removal when the grid is too short. Lower drops first.
 	// Reserve panels are never eligible whatever their rank.
 	DropRank int
 }
 
+// GapPanel marks a Region that no panel owns: deliberate blank space, drawn
+// where it belongs instead of being absorbed by a panel that cannot use it.
+const GapPanel = -1
+
 // Region is a panel's assigned slice of the grid.
 type Region struct {
-	Panel int // index into the input specs
+	Panel int // index into the input specs, or GapPanel
 	Y, H  int
 }
 
@@ -167,19 +185,53 @@ func Solve(specs []Spec, cols, rows, minCols, minRows int) (Frame, error) {
 		}
 	}
 
-	// Step 4: leftover rows to the highest-ranked surviving elastic panel.
-	if used < rows {
-		if e := bestElastic(specs, live); e >= 0 {
-			h[e] += rows - used
-			used = rows
+	// Step 4: leftover rows to elastic panels by rank, each capped at what it
+	// can actually use, falling through to the next rank.
+	taken := map[int]bool{}
+	for used < rows {
+		e := bestElastic(specs, live, taken)
+		if e < 0 {
+			break
 		}
+		taken[e] = true
+		room := rows - used
+		if m := specs[e].MaxRows; m > 0 {
+			if avail := m - h[e]; avail < room {
+				room = avail
+			}
+		}
+		if room <= 0 {
+			continue
+		}
+		h[e] += room
+		used += room
 	}
 
 	f := Frame{Cols: cols, Rows: rows}
 	y := 0
-	for _, i := range live {
+	// Any remainder becomes an explicit gap, placed before the trailing
+	// reserved panels so the status bar still sits at the bottom.
+	gapAt, gapH := -1, rows-used
+	if gapH > 0 {
+		gapAt = len(live)
+		for i := len(live) - 1; i >= 0; i-- {
+			if !specs[live[i]].Reserve {
+				break
+			}
+			gapAt = i
+		}
+	}
+	for idx, i := range live {
+		if idx == gapAt {
+			f.Regions = append(f.Regions, Region{Panel: GapPanel, Y: y, H: gapH})
+			y += gapH
+		}
 		f.Regions = append(f.Regions, Region{Panel: i, Y: y, H: h[i]})
 		y += h[i]
+	}
+	if gapAt == len(live) {
+		f.Regions = append(f.Regions, Region{Panel: GapPanel, Y: y, H: gapH})
+		y += gapH
 	}
 	for i := range specs {
 		if _, ok := h[i]; !ok {
@@ -205,10 +257,14 @@ func sumMin(specs []Spec, live []int) int {
 	return n
 }
 
-// bestElastic returns the surviving panel with the highest Elastic rank.
-func bestElastic(specs []Spec, live []int) int {
+// bestElastic returns the highest-ranked surviving elastic panel not already
+// given its share.
+func bestElastic(specs []Spec, live []int, taken map[int]bool) int {
 	best, rank := -1, 0
 	for _, i := range live {
+		if taken[i] {
+			continue
+		}
 		if specs[i].Elastic > rank {
 			best, rank = i, specs[i].Elastic
 		}

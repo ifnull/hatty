@@ -30,8 +30,17 @@ hold    = "90s"           # E2: alerts are events; hold so a transient is seen
 # ten. aircraft_count is 94. The table is a subset and says so.
 [[panel]]
 type    = "table"
-bind    = "sensor.airspace_flag_military:aircraft[]"
 elastic = 2
+# F0/D41: ha-airspace has no full-aircraft-list entity -- only these flag
+# collections, each capped at ten. The table is their union, deduplicated by
+# hex because an aircraft can be both military and interesting.
+binds = [
+  "sensor.airspace_flag_emergency:aircraft[]",
+  "sensor.airspace_flag_military:aircraft[]",
+  "sensor.airspace_flag_spoof_suspect:aircraft[]",
+  "sensor.airspace_flag_interesting:aircraft[]",
+]
+dedupe = "hex"
 
   [panel.sort]
   key = "distance_nm"
@@ -110,3 +119,11 @@ elastic = 3
   label = "Closest approach"
   bind  = "sensor.airspace_nearest_aircraft:predicted_closest_approach_nm"
   format = "%.1f"
+
+# Reserved: abbreviates before it vanishes, and stays at the bottom whatever
+# else the layout does (D36).
+[[panel]]
+type    = "status_bar"
+reserve = true
+left    = "hatty · radar"
+keys    = "↑↓ select   q quit"

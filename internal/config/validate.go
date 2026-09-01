@@ -103,6 +103,10 @@ func Validate(d *Dashboard) Errors {
 			}
 		}
 		if p.Type == "table" {
+			if len(p.Binds) > 1 && p.Dedupe == "" {
+				add("%s: unions %d collections but declares no dedupe key; "+
+					"the same aircraft appears in several flag lists", where, len(p.Binds))
+			}
 			for _, e := range validateWidthBudget(p, d.Display.MinCols, where) {
 				errs = append(errs, e)
 			}
@@ -227,6 +231,7 @@ func panelBindings(p Panel) []string {
 	if p.Bind != "" {
 		out = append(out, p.Bind)
 	}
+	out = append(out, p.Binds...)
 	if p.Source != "" {
 		out = append(out, p.Source)
 	}

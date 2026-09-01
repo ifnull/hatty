@@ -242,3 +242,67 @@ func TestColumnDropOrder(t *testing.T) {
 		}
 	}
 }
+
+// F1: a data-bounded panel must not absorb rows it cannot draw. Observed live
+// as 22 blank rows inside the detail pane at 100x32.
+func TestCappedPanelsDoNotSwallowUnusableRows(t *testing.T) {
+	specs := []Spec{
+		{Name: "alert", Reserve: true, MinRows: 1, NatRows: 1},
+		{Name: "table", MinRows: 3, NatRows: 5, MaxRows: 5, Elastic: 2, DropRank: 30},
+		{Name: "detail", MinRows: 2, NatRows: 3, MaxRows: 3, Elastic: 3, DropRank: 20},
+		{Name: "status", Reserve: true, MinRows: 1, NatRows: 1},
+	}
+	f, err := Solve(specs, 100, 32, 44, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := total(f); got != 32 {
+		t.Fatalf("rows assigned = %d, want 32", got)
+	}
+	for _, r := range f.Regions {
+		if r.Panel == GapPanel {
+			continue
+		}
+		if m := specs[r.Panel].MaxRows; m > 0 && r.H > m {
+			t.Errorf("%s got %d rows but can only use %d", specs[r.Panel].Name, r.H, m)
+		}
+	}
+	var gap int
+	for _, r := range f.Regions {
+		if r.Panel == GapPanel {
+			gap += r.H
+		}
+	}
+	if gap != 32-10 {
+		t.Errorf("gap = %d rows, want %d as an explicit region", gap, 22)
+	}
+	// The status bar must still be the last thing on screen.
+	last := f.Regions[len(f.Regions)-1]
+	if last.Panel == GapPanel || specs[last.Panel].Name != "status" {
+		t.Error("the gap displaced the status bar from the bottom")
+	}
+}
+
+// Leftover must fall THROUGH a capped panel to the next elastic rank.
+func TestLeftoverFallsThroughToTheNextElasticRank(t *testing.T) {
+	specs := []Spec{
+		{Name: "capped", MinRows: 2, NatRows: 2, MaxRows: 3, Elastic: 5},
+		{Name: "roomy", MinRows: 2, NatRows: 2, Elastic: 1},
+		{Name: "status", Reserve: true, MinRows: 1, NatRows: 1},
+	}
+	f, err := Solve(specs, 100, 20, 44, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capped, _ := byName(f, specs, "capped")
+	roomy, _ := byName(f, specs, "roomy")
+	if capped.H != 3 {
+		t.Errorf("capped panel got %d rows, want its 3-row cap", capped.H)
+	}
+	if roomy.H <= 2 {
+		t.Errorf("uncapped panel got %d rows; leftover did not fall through", roomy.H)
+	}
+	if total(f) != 20 {
+		t.Errorf("rows assigned = %d, want 20", total(f))
+	}
+}

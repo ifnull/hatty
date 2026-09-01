@@ -66,10 +66,19 @@ func (s Session) View() string {
 	screen := model.Build(d, s.snap, s.Theme, time.Now())
 	var out []byte
 	for i, reg := range f.Regions {
-		if reg.Panel >= len(screen.Widgets) {
+		var lines []string
+		if reg.Panel == layout.GapPanel {
+			// Deliberate blank space (finding F1): drawn where it belongs
+			// rather than absorbed by a panel that cannot use it.
+			for n := 0; n < reg.H; n++ {
+				lines = append(lines, render.NewRow(s.w).Gap(s.w).String())
+			}
+		} else if reg.Panel < len(screen.Widgets) {
+			lines = screen.Widgets[reg.Panel].Render(s.w, reg.H, s.Theme)
+		} else {
 			continue
 		}
-		for _, line := range screen.Widgets[reg.Panel].Render(s.w, reg.H, s.Theme) {
+		for _, line := range lines {
 			out = append(out, line...)
 			if i < len(f.Regions)-1 || len(out) > 0 {
 				out = append(out, '\n')

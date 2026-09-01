@@ -194,17 +194,21 @@ that — see [`docs/spikes/E1-backpressure/RESULTS.md`](docs/spikes/E1-backpress
 
 Rendering a real frame surfaced things five rounds of ASCII mockups did not.
 
-### F0 — CONFIRMED LIVE: the table binds one collection, not the union
+### F0 — FIXED: the table binds one collection, not the union
 
 D41 says the table shows *the union of the flag collections*. The implementation
 binds **one** — `sensor.airspace_flag_military` — because the grammar addresses a
 single collection. Live, that is two or three contacts against 71 tracked, which
 is why the screen looks empty.
 
-The gap is in the config grammar, not the widget. Resolving it needs a binding
-that unions several collections and deduplicates by `hex`.
+**Fixed.** Panels take `binds = [...]` plus a `dedupe` key; the table unions the
+four flag collections and deduplicates by `hex`, since an aircraft can be both
+military and interesting. Validation rejects a union with no dedupe key.
 
-### F1 — the elastic panel can absorb rows it cannot use
+Live, that took the table from 2 contacts to 6, with the subset note reading
+`6 flagged of 74 tracked`.
+
+### F1 — FIXED: the elastic panel could absorb rows it cannot use
 
 At 100×32 the composed `radar` frame leaves **sixteen blank rows**. The detail
 pane holds the elastic rank (D37 refined), takes all the leftover, and then has
@@ -229,17 +233,22 @@ Two ways out, and the choice is a design decision rather than a bug fix:
 two. Neither panel can fill the screen — and F0 is why the table has so little
 to show.
 
-Recorded rather than fixed: it changes the layout contract, and the contract has
-already been through three revisions and two adversarial rounds.
+**Fixed.** Panels declare `MaxRows`; leftover falls through to the next elastic
+rank, and any true remainder becomes an explicit `GapPanel` region placed
+*before* the trailing reserved panels.
 
-### F2 — panels have no chrome
+The blank space is unchanged in size — there genuinely are not 32 rows of
+content — but it is now deliberate, positioned, and no longer swallows the
+status bar. Before the fix the status bar was absent from the frame entirely.
+
+### F2 — panels have no chrome (open)
 
 The Phase 5 mockups drew box-drawing borders and titled rules between panels.
 The widgets render bare content. Cosmetic, but it is a real gap between the
 approved design and the implementation, and the borders consume rows the
 solver currently hands to panel content.
 
-### F3 — headers must share their column's alignment
+### F3 — headers must share their column's alignment (fixed)
 
 Fixed. A right-aligned numeric column under a left-aligned header breaks the
 scanning the table's whole design rests on: the eye compares columns, not
