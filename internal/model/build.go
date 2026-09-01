@@ -51,6 +51,7 @@ func buildPanel(p config.Panel, r Resolver, th *widget.Theme) (widget.Widget, la
 
 	case "table":
 		t, rows := buildTable(p, r, th)
+		spec.Rule = true
 		spec.MinRows = 3
 		spec.NatRows = rows + 2 // header + the subset note (D41)
 		// F1: a table cannot draw more rows than it has contacts, so it must
@@ -60,13 +61,14 @@ func buildPanel(p config.Panel, r Resolver, th *widget.Theme) (widget.Widget, la
 
 	case "detail":
 		d, n := buildDetail(p, r, th)
+		spec.Rule, spec.Title = true, p.Follows
 		spec.MinRows = 2
 		spec.NatRows = n + 1
 		spec.MaxRows = spec.NatRows // F1: bounded by the record, like the table
 		return d, spec
 
 	case "status_bar":
-		spec.Reserve = true
+		spec.Reserve, spec.Rule = true, true
 		return &widget.StatusBar{Left: p.Left, Keys: p.Keys}, spec
 	}
 	return nil, spec

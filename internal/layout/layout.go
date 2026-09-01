@@ -57,6 +57,12 @@ type Spec struct {
 	// show.
 	Elastic int
 
+	// Rule asks for a titled divider above this panel. The divider is drawn by
+	// the frame chrome and costs one row, which the caller must subtract from
+	// the grid before solving (finding F2).
+	Rule  bool
+	Title string
+
 	// MaxRows caps what a panel can usefully occupy. Zero means unbounded.
 	//
 	// FINDING F1: elasticity assumed some panel would grow to fill the grid.

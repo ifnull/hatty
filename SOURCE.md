@@ -241,12 +241,18 @@ The blank space is unchanged in size — there genuinely are not 32 rows of
 content — but it is now deliberate, positioned, and no longer swallows the
 status bar. Before the fix the status bar was absent from the frame entirely.
 
-### F2 — panels have no chrome (open)
+### F2 — FIXED: panels had no chrome
 
-The Phase 5 mockups drew box-drawing borders and titled rules between panels.
-The widgets render bare content. Cosmetic, but it is a real gap between the
-approved design and the implementation, and the borders consume rows the
-solver currently hands to panel content.
+The Phase 5 mockups drew box-drawing borders and titled rules between panels;
+the widgets rendered bare content.
+
+**Fixed.** `widget.Chrome` draws a titled top border, side rails, titled rules
+and a bottom border, and the session subtracts the cost **before** solving — two
+columns for the rails, two rows for the borders, one row per rule. Getting that
+subtraction wrong would overflow the terminal, so it is not merely cosmetic.
+
+The `Detail` widget no longer draws its own title rule; the frame owns it, so a
+panel cannot disagree with its own divider.
 
 ### F3 — headers must share their column's alignment (fixed)
 

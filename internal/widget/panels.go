@@ -66,13 +66,9 @@ func (d *Detail) Render(w, h int, th *Theme) []string {
 	if w <= 0 || h <= 0 {
 		return nil
 	}
+	// The title rule is drawn by the frame chrome (finding F2), not here, so a
+	// panel cannot disagree with its own divider.
 	out := make([]string, 0, h)
-	if d.Title != "" {
-		r := render.NewRow(w)
-		r.Cell(" "+d.Title+" ", min(w, render.Width(d.Title)+2), render.Left, th.Title)
-		r.Fill("─", th.Chrome)
-		out = append(out, r.String())
-	}
 	// Two columns of label/value when there is room; one when there is not.
 	perCol := 2
 	if w < 62 {

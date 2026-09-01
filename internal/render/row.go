@@ -24,6 +24,10 @@ type Style struct {
 	Dim  bool
 }
 
+// Wrap applies the style to text. Exported so chrome can style single glyphs
+// without building a whole Row.
+func (s Style) Wrap(text string) string { return s.wrap(text) }
+
 func (s Style) wrap(text string) string {
 	if s.FG == 0 && s.BG == 0 && !s.Bold && !s.Dim {
 		return text

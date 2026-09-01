@@ -59,40 +59,63 @@ func (s Session) View() string {
 		return ""
 	}
 	d := s.Dash
-	f, err := layout.Solve(specsFor(s), s.w, s.h, d.Display.MinCols, d.Display.MinRows)
+	screen := model.Build(d, s.snap, s.Theme, time.Now())
+
+	// F2: chrome consumes grid. Two columns for the side rails, two rows for
+	// the borders, and one row per titled rule -- all subtracted BEFORE
+	// solving, or the frame overflows the terminal.
+	rules := 0
+	for _, sp := range screen.Specs {
+		if sp.Rule {
+			rules++
+		}
+	}
+	innerW, innerH := s.w-2, s.h-2-rules
+	if innerW < d.Display.MinCols || innerH < d.Display.MinRows {
+		return refusal(s.w, s.h, d, s.Theme)
+	}
+
+	f, err := layout.Solve(screen.Specs, innerW, innerH, d.Display.MinCols, d.Display.MinRows)
 	if err != nil {
 		return refusal(s.w, s.h, d, s.Theme)
 	}
-	screen := model.Build(d, s.snap, s.Theme, time.Now())
-	var out []byte
-	for i, reg := range f.Regions {
-		var lines []string
-		if reg.Panel == layout.GapPanel {
-			// Deliberate blank space (finding F1): drawn where it belongs
-			// rather than absorbed by a panel that cannot use it.
+
+	lines := []string{widget.Top(s.w, d.Title, s.Theme)}
+	for _, reg := range f.Regions {
+		var body []string
+		switch {
+		case reg.Panel == layout.GapPanel:
+			// Deliberate blank space (finding F1), drawn where it belongs.
 			for n := 0; n < reg.H; n++ {
-				lines = append(lines, render.NewRow(s.w).Gap(s.w).String())
+				body = append(body, render.NewRow(innerW).Gap(innerW).String())
 			}
-		} else if reg.Panel < len(screen.Widgets) {
-			lines = screen.Widgets[reg.Panel].Render(s.w, reg.H, s.Theme)
-		} else {
+		case reg.Panel < len(screen.Widgets):
+			sp := screen.Specs[reg.Panel]
+			if sp.Rule {
+				st := s.Theme.Chrome
+				if sp.Name == "detail" {
+					st = s.Theme.Title
+				}
+				lines = append(lines, widget.Rule(s.w, sp.Title, s.Theme, st))
+			}
+			body = screen.Widgets[reg.Panel].Render(innerW, reg.H, s.Theme)
+		default:
 			continue
 		}
-		for _, line := range lines {
-			out = append(out, line...)
-			if i < len(f.Regions)-1 || len(out) > 0 {
-				out = append(out, '\n')
-			}
+		for _, b := range body {
+			lines = append(lines, widget.Rail(b, s.Theme))
 		}
 	}
-	if n := len(out); n > 0 && out[n-1] == '\n' {
-		out = out[:n-1]
+	lines = append(lines, widget.Bottom(s.w, s.Theme))
+
+	var out []byte
+	for i, l := range lines {
+		if i > 0 {
+			out = append(out, '\n')
+		}
+		out = append(out, l...)
 	}
 	return string(out)
-}
-
-func specsFor(s Session) []layout.Spec {
-	return model.Build(s.Dash, s.snap, s.Theme, time.Now()).Specs
 }
 
 // refusal is what a too-small terminal gets. Drawing a corrupted layout is

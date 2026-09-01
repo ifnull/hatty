@@ -187,3 +187,45 @@ func TestStatusBarShedsKeysBeforeOverflowing(t *testing.T) {
 		t.Error("connection state must survive; it is the important half")
 	}
 }
+
+// F2: chrome must be exactly the frame width, or every content row below it is
+// offset and the whole frame corrupts.
+func TestChromeIsExactWidth(t *testing.T) {
+	th := Default()
+	for _, w := range []int{44, 50, 64, 80, 100} {
+		for name, got := range map[string]string{
+			"top":           Top(w, "hatty · radar", th),
+			"top-notitle":   Top(w, "", th),
+			"top-longtitle": Top(w, strings.Repeat("very long title ", 12), th),
+			"bottom":        Bottom(w, th),
+			"rule":          Rule(w, "nearest", th, th.Title),
+			"rule-plain":    Rule(w, "", th, th.Chrome),
+		} {
+			if n := render.Width(vis(got)); n != w {
+				t.Errorf("%s at width %d rendered %d cells: %q", name, w, n, vis(got))
+			}
+		}
+		// Rails add exactly two cells to a content line.
+		body := render.NewRow(w - 2).Gap(w - 2).String()
+		if n := render.Width(vis(Rail(body, th))); n != w {
+			t.Errorf("railed line at width %d rendered %d cells", w, n)
+		}
+	}
+}
+
+func TestChromeDrawsCorners(t *testing.T) {
+	th := Default()
+	top := vis(Top(60, "x", th))
+	bot := vis(Bottom(60, th))
+	rule := vis(Rule(60, "y", th, th.Title))
+	for _, c := range []struct{ s, first, last string }{
+		{top, "┌", "┐"}, {bot, "└", "┘"}, {rule, "├", "┤"},
+	} {
+		if !strings.HasPrefix(c.s, c.first) {
+			t.Errorf("%q does not start with %s", c.s[:3], c.first)
+		}
+		if !strings.HasSuffix(c.s, c.last) {
+			t.Errorf("%q does not end with %s", c.s[len(c.s)-3:], c.last)
+		}
+	}
+}
