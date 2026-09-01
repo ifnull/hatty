@@ -4,12 +4,14 @@ HATTY_HOST=dashboard-server
 HATTY_PORT=2222
 HATTY_USER=hatty
 
-# D40: 100x32 on the 800x480 panel, chosen by reading all four measured grids.
-HATTY_FONT="DejaVu Sans Mono:size=8"
+# D45: size 10 gives 100x28 on the 800x480 panel -- MEASURED in foot, not
+# extrapolated. No size produces D40's 100x32; size 9 gives 114x32 but shrinks
+# characters to 1.36 mm, and D40 was chosen on readability at 1.55 mm.
+HATTY_FONT="DejaVu Sans Mono:size=10"
 
 # Per-dashboard override. The recorded fallback if 100x32 proves a squint over
 # long sessions is 80x25, which is an already-verified breakpoint -- a larger
 # font here is how that is applied, with no change to the daemon.
-# HATTY_FONT_HOME="DejaVu Sans Mono:size=9"
+# HATTY_FONT_HOME="DejaVu Sans Mono:size=9"   # 114x32: more rows, smaller text
 
 HATTY_RETRY=5

@@ -6,9 +6,9 @@ title = "hatty · home"
 
 [display]
 resolution = "800x480"
-font       = "DejaVu Sans Mono:size=8"
+font       = "DejaVu Sans Mono:size=10"
 cols       = 100
-rows       = 32
+rows       = 28
 min_cols   = 44
 min_rows   = 12
 glyphs     = "full"

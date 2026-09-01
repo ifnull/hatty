@@ -5,9 +5,9 @@ title = "hatty · radar"
 
 [display]
 resolution = "800x480"
-font       = "DejaVu Sans Mono:size=8"
-cols       = 100          # measured target (D40); 100x32 on the panel
-rows       = 32
+font       = "DejaVu Sans Mono:size=10"
+cols       = 100          # measured in foot on the panel (D45)
+rows       = 28
 min_cols   = 44           # refusal floor (D36)
 min_rows   = 12
 glyphs     = "full"       # Braille confirmed on the panel by spike S2
